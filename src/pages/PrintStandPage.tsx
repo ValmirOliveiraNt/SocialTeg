@@ -34,6 +34,7 @@ export const PrintStandPage: React.FC = () => {
   }
 
   const publicUrl = getPublicTagUrl(tag.public_id)
+  const qrUrl = `${publicUrl}?src=qr`
 
   return (
     <div className="min-h-screen bg-slate-100 py-8 px-4 print:bg-white print:p-0">
@@ -75,7 +76,7 @@ export const PrintStandPage: React.FC = () => {
 
         <div className="bg-slate-50 border-2 border-slate-200 rounded-2xl p-6 mb-6 inline-block">
           <QRCodeSVG
-            value={publicUrl}
+            value={qrUrl}
             size={220}
             level="H"
             includeMargin={false}

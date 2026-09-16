@@ -26,6 +26,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
   const qrCanvasRef = useRef<HTMLDivElement>(null)
 
   const publicUrl = getPublicTagUrl(tag.public_id)
+  const qrUrl = `${publicUrl}?src=qr`
 
   const handleCopy = () => {
     navigator.clipboard.writeText(publicUrl)
@@ -66,7 +67,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
         <div className="flex flex-col items-center justify-center p-6 bg-slate-50 rounded-xl border border-slate-200 mb-6">
           <div className="bg-white p-4 rounded-xl shadow-xs border border-slate-200 mb-3">
             <QRCodeSVG
-              value={publicUrl}
+              value={qrUrl}
               size={180}
               level="H"
               includeMargin={true}
@@ -83,7 +84,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
 
           <div className="hidden" ref={qrCanvasRef}>
             <QRCodeCanvas
-              value={publicUrl}
+              value={qrUrl}
               size={1024}
               level="H"
               includeMargin={true}

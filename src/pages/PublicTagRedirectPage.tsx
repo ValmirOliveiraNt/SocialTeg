@@ -82,7 +82,36 @@ export const PublicTagRedirectPage: React.FC = () => {
       setStatus('found_active')
 
       if (dest) {
-        api.scans.record(foundTag.id, dest.type)
+        const searchParams = new URLSearchParams(window.location.search)
+        const srcParam = searchParams.get('src')
+        const method =
+          srcParam === 'qr'
+            ? 'QR Code'
+            : srcParam === 'nfc'
+            ? 'NFC Aproximação'
+            : 'NFC Aproximação'
+
+        const now = new Date()
+        const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'
+        let localDateStr = ''
+        let localTimeStr = ''
+        try {
+          localDateStr = now.toLocaleDateString('pt-BR', { timeZone, day: '2-digit', month: '2-digit', year: 'numeric' })
+          localTimeStr = now.toLocaleTimeString('pt-BR', { timeZone, hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        } catch {
+          localDateStr = now.toISOString().split('T')[0]
+          localTimeStr = now.toISOString().split('T')[1]?.substring(0, 8) || ''
+        }
+
+        api.scans.record(foundTag.id, dest.type, {
+          reading_method: method,
+          local_date: localDateStr,
+          local_time: localTimeStr,
+          timezone: timeZone,
+          language: typeof navigator !== 'undefined' ? navigator.language : 'pt-BR',
+          screen: typeof window !== 'undefined' && window.screen ? `${window.screen.width}x${window.screen.height}` : undefined,
+          referrer: typeof document !== 'undefined' ? (document.referrer || method) : method,
+        })
       }
 
       setLoading(false)

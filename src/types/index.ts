@@ -118,6 +118,12 @@ export interface TagScan {
   tag_name?: string
   tag_location?: string
   serial_number?: string
+  local_time?: string
+  local_date?: string
+  timezone?: string
+  reading_method?: 'nfc' | 'qr' | 'direct' | string
+  screen_resolution?: string
+  language?: string
 }
 
 export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled'

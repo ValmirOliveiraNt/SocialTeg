@@ -12,6 +12,18 @@ import {
   PlayCircle,
   Settings,
   Plus,
+  Clock,
+  Calendar,
+  MapPin,
+  Smartphone,
+  Activity,
+  BarChart2,
+  LayoutList,
+  LayoutGrid,
+  TrendingUp,
+  Building2,
+  Sparkles,
+  ArrowUpDown,
 } from 'lucide-react'
 import { NFCTag, TagStatus, Business, TagDestination, TagScan } from '../../types'
 import { useAuth } from '../../context/AuthContext'
@@ -19,14 +31,56 @@ import { api } from '../../services/api'
 import { QRCodeModal } from '../../components/QRCodeModal'
 import { ActivateTagModal } from '../../components/ActivateTagModal'
 import { NFCWriterModal } from '../../components/NFCWriterModal'
+import { TagScanHistoryModal } from '../../components/TagScanHistoryModal'
 import { getPublicTagUrl } from '../../utils/url'
+
+function formatRelativeScanTime(scan: TagScan): { primary: string; secondary?: string; method: string } {
+  const isQR =
+    scan.reading_method?.toLowerCase().includes('qr') ||
+    scan.referrer?.toLowerCase().includes('qr')
+  const method = isQR ? 'QR Code' : 'NFC'
+
+  if (scan.local_time) {
+    const todayStr = new Date().toLocaleDateString('pt-BR')
+    const isToday = scan.local_date === todayStr
+    return {
+      primary: isToday ? `Hoje às ${scan.local_time}` : `${scan.local_date} às ${scan.local_time}`,
+      secondary: scan.region || undefined,
+      method,
+    }
+  }
+
+  const date = new Date(scan.scanned_at)
+  const isNaN = Number.isNaN(date.getTime())
+  if (isNaN) return { primary: 'Data desconhecida', method }
+
+  const today = new Date()
+  const isToday =
+    date.getDate() === today.getDate() &&
+    date.getMonth() === today.getMonth() &&
+    date.getFullYear() === today.getFullYear()
+
+  const timeStr = date.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })
+  const dateStr = date.toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
+
+  return {
+    primary: isToday ? `Hoje às ${timeStr}` : `${dateStr} às ${timeStr}`,
+    secondary: scan.region || undefined,
+    method,
+  }
+}
 
 export const CustomerTagsPage: React.FC = () => {
   const { currentUser } = useAuth()
   const [searchTerm, setSearchTerm] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('all')
+  const [businessFilter, setBusinessFilter] = useState<string>('all')
+  const [sortBy, setSortBy] = useState<'scans' | 'recent' | 'name' | 'created'>('scans')
+  const [viewMode, setViewMode] = useState<'table' | 'grid'>('table')
+
   const [selectedTagForQR, setSelectedTagForQR] = useState<NFCTag | null>(null)
   const [tagToWrite, setTagToWrite] = useState<NFCTag | null>(null)
+  const [tagForHistory, setTagForHistory] = useState<NFCTag | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [activateModalOpen, setActivateModalOpen] = useState(false)
   const [refreshTrigger, setRefreshTrigger] = useState(0)
@@ -35,27 +89,100 @@ export const CustomerTagsPage: React.FC = () => {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [destinations, setDestinations] = useState<TagDestination[]>([])
   const [scans, setScans] = useState<TagScan[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     if (!currentUser) return
-    api.tags.getAll(currentUser.id).then(setTags).catch(() => {})
-    api.businesses.getAll(currentUser.id).then(setBusinesses).catch(() => {})
-    api.destinations.getAll().then(setDestinations).catch(() => {})
-    api.scans.getAll(currentUser.id).then(setScans).catch(() => {})
+    setLoading(true)
+    Promise.all([
+      api.tags.getAll(currentUser.id),
+      api.businesses.getAll(currentUser.id),
+      api.destinations.getAll(),
+      api.scans.getAll(currentUser.id),
+    ])
+      .then(([tagsData, bizData, destsData, scansData]) => {
+        setTags(tagsData || [])
+        setBusinesses(bizData || [])
+        setDestinations(destsData || [])
+        setScans(scansData || [])
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false))
   }, [currentUser, refreshTrigger])
 
-  const filteredTags = useMemo(() => {
-    return tags.filter((t) => {
-      const matchesSearch =
-        t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.public_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        t.serial_number.toLowerCase().includes(searchTerm.toLowerCase())
+  // KPIs & Stats
+  const activeTagsCount = useMemo(() => tags.filter((t) => t.status === 'active').length, [tags])
+  const totalScansCount = useMemo(() => scans.length, [scans])
 
-      const matchesStatus = statusFilter === 'all' || t.status === statusFilter
+  const scansTodayCount = useMemo(() => {
+    const today = new Date().toLocaleDateString('pt-BR')
+    return scans.filter((s) => {
+      if (s.local_date) return s.local_date === today
+      return new Date(s.scanned_at).toLocaleDateString('pt-BR') === today
+    }).length
+  }, [scans])
 
-      return matchesSearch && matchesStatus
+  const nfcScansCount = useMemo(() => {
+    return scans.filter(
+      (s) => !s.reading_method?.toLowerCase().includes('qr') && !s.referrer?.toLowerCase().includes('qr')
+    ).length
+  }, [scans])
+
+  const qrScansCount = totalScansCount - nfcScansCount
+
+  // Map scans to tags for ultra-fast lookup
+  const scansByTagId = useMemo(() => {
+    const map = new Map<string, TagScan[]>()
+    scans.forEach((s) => {
+      const list = map.get(s.tag_id) || []
+      list.push(s)
+      map.set(s.tag_id, list)
     })
-  }, [tags, searchTerm, statusFilter])
+    return map
+  }, [scans])
+
+  // Filter & Sort
+  const filteredAndSortedTags = useMemo(() => {
+    return tags
+      .filter((t) => {
+        const biz = businesses.find((b) => b.id === t.business_id)
+        const matchesSearch =
+          t.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.public_id.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          t.serial_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+          (t.location && t.location.toLowerCase().includes(searchTerm.toLowerCase())) ||
+          (biz && biz.name.toLowerCase().includes(searchTerm.toLowerCase()))
+
+        const matchesStatus = statusFilter === 'all' || t.status === statusFilter
+        const matchesBusiness = businessFilter === 'all' || t.business_id === businessFilter
+
+        return matchesSearch && matchesStatus && matchesBusiness
+      })
+      .sort((a, b) => {
+        const aScans = scansByTagId.get(a.id) || []
+        const bScans = scansByTagId.get(b.id) || []
+
+        if (sortBy === 'scans') {
+          return bScans.length - aScans.length
+        }
+
+        if (sortBy === 'recent') {
+          const aLatest = aScans.length > 0 ? new Date(aScans[0].scanned_at).getTime() : 0
+          const bLatest = bScans.length > 0 ? new Date(bScans[0].scanned_at).getTime() : 0
+          return bLatest - aLatest
+        }
+
+        if (sortBy === 'name') {
+          return a.name.localeCompare(b.name)
+        }
+
+        if (sortBy === 'created') {
+          return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        }
+
+        return 0
+      })
+  }, [tags, searchTerm, statusFilter, businessFilter, sortBy, businesses, scansByTagId])
 
   const handleCopyLink = (publicId: string) => {
     const url = getPublicTagUrl(publicId)
@@ -68,242 +195,637 @@ export const CustomerTagsPage: React.FC = () => {
     const nextStatus: TagStatus = tag.status === 'active' ? 'inactive' : 'active'
     try {
       await api.tags.save({ id: tag.id, status: nextStatus })
+      setTags((prev) => prev.map((t) => (t.id === tag.id ? { ...t, status: nextStatus } : t)))
     } catch {}
     setRefreshTrigger((prev) => prev + 1)
   }
 
   return (
     <div className="space-y-6">
+      {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-50 text-blue-700 text-xs font-semibold mb-2">
+            <Radio className="w-3.5 h-3.5 animate-pulse" />
+            <span>NFC Dinâmico & Telemetria em Tempo Real</span>
+          </div>
           <h1 className="text-2xl font-black text-slate-900 tracking-tight">
             Gerenciamento de Tags NFC
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Todas as Tags físicas vinculadas aos seus estabelecimentos comerciais.
+            Controle de dispositivos físicos, telemetria de data/horário local de leitura e redirecionamentos.
           </p>
         </div>
 
-        <button
-          onClick={() => setActivateModalOpen(true)}
-          className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-xs transition flex items-center justify-center gap-2 cursor-pointer"
-        >
-          <Plus className="w-4 h-4" />
-          <span>Ativar Nova Tag NFC</span>
-        </button>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={() => setActivateModalOpen(true)}
+            className="px-4 py-2.5 bg-blue-600 hover:bg-blue-700 text-white text-xs font-bold rounded-xl shadow-md shadow-blue-500/20 transition flex items-center justify-center gap-2 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Ativar Nova Tag NFC</span>
+          </button>
+        </div>
       </div>
 
-      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col sm:flex-row gap-3 items-center justify-between">
-        <div className="relative w-full sm:w-80">
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Total de Tags
+            </span>
+            <Radio className="w-4 h-4 text-blue-600" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{tags.length}</div>
+          <div className="flex items-center gap-2 mt-1 text-xs">
+            <span className="text-emerald-700 font-semibold bg-emerald-50 px-1.5 py-0.5 rounded border border-emerald-200 text-[10px]">
+              {activeTagsCount} Ativas
+            </span>
+            {tags.length - activeTagsCount > 0 && (
+              <span className="text-amber-700 font-semibold bg-amber-50 px-1.5 py-0.5 rounded border border-amber-200 text-[10px]">
+                {tags.length - activeTagsCount} Pausadas
+              </span>
+            )}
+          </div>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Leituras Totais
+            </span>
+            <Activity className="w-4 h-4 text-indigo-600" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{totalScansCount}</div>
+          <div className="text-[11px] text-slate-400 mt-1">Interações acumuladas</div>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Leituras Hoje
+            </span>
+            <Clock className="w-4 h-4 text-emerald-600" />
+          </div>
+          <div className="text-2xl sm:text-3xl font-black text-slate-900">{scansTodayCount}</div>
+          <div className="text-[11px] text-emerald-600 font-semibold mt-1 flex items-center gap-1">
+            <TrendingUp className="w-3 h-3" />
+            <span>Capturadas hoje</span>
+          </div>
+        </div>
+
+        <div className="bg-white p-4 sm:p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          <div className="flex items-center justify-between text-slate-400 mb-2">
+            <span className="text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+              Canal de Leitura
+            </span>
+            <Smartphone className="w-4 h-4 text-purple-600" />
+          </div>
+          <div className="text-sm font-bold text-slate-900 flex items-center gap-2 mt-1">
+            <span className="px-2 py-1 bg-emerald-50 text-emerald-700 rounded-lg border border-emerald-200 text-xs font-black">
+              {nfcScansCount} NFC ({totalScansCount > 0 ? Math.round((nfcScansCount / totalScansCount) * 100) : 0}%)
+            </span>
+            <span className="px-2 py-1 bg-purple-50 text-purple-700 rounded-lg border border-purple-200 text-xs font-black">
+              {qrScansCount} QR ({totalScansCount > 0 ? Math.round((qrScansCount / totalScansCount) * 100) : 0}%)
+            </span>
+          </div>
+          <div className="text-[10px] text-slate-400 mt-1.5">Identificação por sensor vs câmera</div>
+        </div>
+      </div>
+
+      {/* Filter, Search & View Controls */}
+      <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-2xs flex flex-col lg:flex-row gap-3 items-stretch lg:items-center justify-between">
+        {/* Search */}
+        <div className="relative flex-1 min-w-[240px]">
           <input
             type="text"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            placeholder="Buscar por nome, ID público ou serial..."
-            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden"
+            placeholder="Buscar por tag, serial, mesa/local, ID ou loja..."
+            className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden focus:border-blue-500 transition"
           />
           <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
         </div>
 
-        <div className="flex items-center gap-2 w-full sm:w-auto">
-          <Filter className="w-4 h-4 text-slate-400" />
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-medium text-slate-700"
-          >
-            <option value="all">Todos os Status ({tags.length})</option>
-            <option value="active">Ativas</option>
-            <option value="inactive">Pausadas</option>
-            <option value="pending_activation">Aguardando Ativação</option>
-            <option value="blocked">Bloqueadas</option>
-          </select>
+        {/* Dropdowns */}
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Status filter */}
+          <div className="flex items-center gap-1.5">
+            <Filter className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={statusFilter}
+              onChange={(e) => setStatusFilter(e.target.value)}
+              className="px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-medium text-slate-700 cursor-pointer"
+            >
+              <option value="all">Todos Status ({tags.length})</option>
+              <option value="active">Ativas ({activeTagsCount})</option>
+              <option value="inactive">Pausadas ({tags.length - activeTagsCount})</option>
+              <option value="pending_activation">Aguardando Ativação</option>
+              <option value="blocked">Bloqueadas</option>
+            </select>
+          </div>
+
+          {/* Business filter */}
+          {businesses.length > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Building2 className="w-3.5 h-3.5 text-slate-400" />
+              <select
+                value={businessFilter}
+                onChange={(e) => setBusinessFilter(e.target.value)}
+                className="px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-medium text-slate-700 cursor-pointer max-w-[150px] truncate"
+              >
+                <option value="all">Todas as Lojas</option>
+                {businesses.map((b) => (
+                  <option key={b.id} value={b.id}>
+                    {b.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Sort selector */}
+          <div className="flex items-center gap-1.5">
+            <ArrowUpDown className="w-3.5 h-3.5 text-slate-400" />
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              className="px-2.5 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:bg-white focus:outline-hidden font-medium text-slate-700 cursor-pointer"
+            >
+              <option value="scans">Mais Leituras</option>
+              <option value="recent">Última Leitura Recente</option>
+              <option value="name">Nome (A-Z)</option>
+              <option value="created">Mais Recentes</option>
+            </select>
+          </div>
+
+          {/* View mode toggle */}
+          <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
+            <button
+              onClick={() => setViewMode('table')}
+              title="Visualização em Lista / Tabela"
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                viewMode === 'table' ? 'bg-white shadow-xs text-blue-600' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <LayoutList className="w-4 h-4" />
+            </button>
+            <button
+              onClick={() => setViewMode('grid')}
+              title="Visualização em Grade de Cards"
+              className={`p-1.5 rounded-lg transition cursor-pointer ${
+                viewMode === 'grid' ? 'bg-white shadow-xs text-blue-600' : 'text-slate-500 hover:text-slate-800'
+              }`}
+            >
+              <LayoutGrid className="w-4 h-4" />
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
-            <thead>
-              <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
-                <th className="py-3.5 px-4">Tag & Serial</th>
-                <th className="py-3.5 px-4">Estabelecimento</th>
-                <th className="py-3.5 px-4">Destino Configurado</th>
-                <th className="py-3.5 px-4 text-center">Status</th>
-                <th className="py-3.5 px-4 text-center">Scans</th>
-                <th className="py-3.5 px-4 text-center">Último Acesso</th>
-                <th className="py-3.5 px-4 text-right">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
-              {filteredTags.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="py-12 text-center text-slate-400 text-xs">
-                    Nenhuma Tag encontrada com os filtros aplicados.
-                  </td>
+      {/* Main Content: Table or Grid */}
+      {viewMode === 'table' ? (
+        <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left border-collapse">
+              <thead>
+                <tr className="bg-slate-50/80 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                  <th className="py-3.5 px-4">Tag & Serial</th>
+                  <th className="py-3.5 px-4">Estabelecimento / Local</th>
+                  <th className="py-3.5 px-4">Destino Configurado</th>
+                  <th className="py-3.5 px-4 text-center">Status</th>
+                  <th className="py-3.5 px-4 text-center">Total Leituras</th>
+                  <th className="py-3.5 px-4 text-center">Última Leitura (Data/Hora)</th>
+                  <th className="py-3.5 px-4 text-right">Ações Rápidas</th>
                 </tr>
-              ) : (
-                filteredTags.map((tag) => {
-                  const biz = businesses.find((b) => b.id === tag.business_id)
-                  const dest = destinations.find((d) => d.tag_id === tag.id)
-                  const tagScans = scans.filter((s) => s.tag_id === tag.id)
-                  const lastScan = tagScans.sort(
-                    (a, b) => new Date(b.scanned_at).getTime() - new Date(a.scanned_at).getTime()
-                  )[0]
+              </thead>
+              <tbody className="divide-y divide-slate-100 text-xs text-slate-700">
+                {filteredAndSortedTags.length === 0 ? (
+                  <tr>
+                    <td colSpan={7} className="py-14 text-center text-slate-400 text-xs">
+                      <Radio className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+                      <p className="font-semibold text-slate-600">Nenhuma Tag NFC encontrada</p>
+                      <p className="text-slate-400 mt-0.5">Tente ajustar a busca ou os filtros aplicados.</p>
+                    </td>
+                  </tr>
+                ) : (
+                  filteredAndSortedTags.map((tag) => {
+                    const biz = businesses.find((b) => b.id === tag.business_id)
+                    const dest = destinations.find((d) => d.tag_id === tag.id)
+                    const tagScans = scansByTagId.get(tag.id) || []
+                    const lastScan = tagScans.length > 0 ? tagScans[0] : null
+                    const relativeTime = lastScan ? formatRelativeScanTime(lastScan) : null
 
-                  return (
-                    <tr key={tag.id} className="hover:bg-slate-50/70 transition">
-                      <td className="py-3.5 px-4">
-                        <div className="flex items-center gap-3">
-                          <div className="w-9 h-9 rounded-xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
-                            <Radio className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="font-bold text-slate-900">{tag.name}</div>
-                            <div className="text-[11px] text-slate-400 font-mono">
-                              Serial: {tag.serial_number} • ID: {tag.public_id}
+                    return (
+                      <tr key={tag.id} className="hover:bg-slate-50/80 transition group">
+                        {/* Tag name & serial */}
+                        <td className="py-3.5 px-4">
+                          <div className="flex items-center gap-3">
+                            <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0 shadow-2xs">
+                              <Radio className="w-5 h-5" />
+                            </div>
+                            <div>
+                              <div className="font-bold text-slate-900 group-hover:text-blue-600 transition flex items-center gap-1.5">
+                                <span>{tag.name}</span>
+                              </div>
+                              <div className="text-[11px] text-slate-400 font-mono mt-0.5">
+                                Serial: <span className="text-slate-700 font-bold">{tag.serial_number}</span> • ID:{' '}
+                                <span className="text-slate-700">{tag.public_id}</span>
+                              </div>
                             </div>
                           </div>
-                        </div>
-                      </td>
+                        </td>
 
-                      <td className="py-3.5 px-4">
-                        {biz ? (
-                          <div className="font-semibold text-slate-800">{biz.name}</div>
-                        ) : (
-                          <span className="text-slate-400 italic">Não vinculado</span>
-                        )}
-                        <div className="text-[10px] text-slate-400">{tag.location || 'Sem local'}</div>
-                      </td>
-
-                      <td className="py-3.5 px-4">
-                        {dest ? (
-                          <div className="max-w-[200px]">
-                            <span className="font-semibold text-slate-800 capitalize">
-                              {dest.type.replace('_', ' ')}
-                            </span>
-                            <div className="text-[10px] text-blue-600 truncate">
-                              {dest.target_url}
-                            </div>
+                        {/* Business & Location */}
+                        <td className="py-3.5 px-4">
+                          {biz ? (
+                            <div className="font-semibold text-slate-800">{biz.name}</div>
+                          ) : (
+                            <span className="text-slate-400 italic">Não vinculado</span>
+                          )}
+                          <div className="text-[11px] text-slate-500 flex items-center gap-1 mt-0.5">
+                            <MapPin className="w-3 h-3 text-slate-400" />
+                            <span>{tag.location || 'Sem local físico'}</span>
                           </div>
-                        ) : (
-                          <span className="text-slate-400 italic">Padrão Google</span>
-                        )}
-                      </td>
+                        </td>
 
-                      <td className="py-3.5 px-4 text-center">
-                        <span
-                          className={`inline-flex items-center px-2.5 py-1 rounded-full text-[10px] font-bold ${
-                            tag.status === 'active'
-                              ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
-                              : tag.status === 'inactive'
-                              ? 'bg-amber-50 text-amber-700 border border-amber-200'
-                              : tag.status === 'pending_activation'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-red-50 text-red-700 border border-red-200'
-                          }`}
-                        >
-                          {tag.status === 'active' && 'Ativa'}
-                          {tag.status === 'inactive' && 'Pausada'}
-                          {tag.status === 'pending_activation' && 'Aguardando Ativação'}
-                          {tag.status === 'blocked' && 'Bloqueada'}
-                        </span>
-                      </td>
+                        {/* Destination */}
+                        <td className="py-3.5 px-4">
+                          {dest ? (
+                            <div className="max-w-[200px]">
+                              <span
+                                className={`inline-flex items-center px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${
+                                  dest.type === 'google_review'
+                                    ? 'bg-amber-50 text-amber-800 border border-amber-200'
+                                    : dest.type === 'instagram'
+                                    ? 'bg-pink-50 text-pink-800 border border-pink-200'
+                                    : dest.type === 'whatsapp'
+                                    ? 'bg-emerald-50 text-emerald-800 border border-emerald-200'
+                                    : 'bg-blue-50 text-blue-800 border border-blue-200'
+                                }`}
+                              >
+                                {dest.type.replace('_', ' ')}
+                              </span>
+                              <div className="text-[10px] text-blue-600 truncate mt-1">
+                                {dest.target_url}
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic">Padrão Google</span>
+                          )}
+                        </td>
 
-                      <td className="py-3.5 px-4 text-center font-bold text-slate-900">
-                        {tagScans.length}
-                      </td>
+                        {/* Status */}
+                        <td className="py-3.5 px-4 text-center">
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[10px] font-bold ${
+                              tag.status === 'active'
+                                ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                                : tag.status === 'inactive'
+                                ? 'bg-amber-50 text-amber-700 border border-amber-200'
+                                : tag.status === 'pending_activation'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-red-50 text-red-700 border border-red-200'
+                            }`}
+                          >
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                tag.status === 'active'
+                                  ? 'bg-emerald-500 animate-pulse'
+                                  : tag.status === 'inactive'
+                                  ? 'bg-amber-500'
+                                  : 'bg-red-500'
+                              }`}
+                            ></span>
+                            {tag.status === 'active' && 'Ativa'}
+                            {tag.status === 'inactive' && 'Pausada'}
+                            {tag.status === 'pending_activation' && 'Aguardando'}
+                            {tag.status === 'blocked' && 'Bloqueada'}
+                          </span>
+                        </td>
 
-                      <td className="py-3.5 px-4 text-center text-[11px] text-slate-500">
-                        {lastScan
-                          ? new Date(lastScan.scanned_at).toLocaleDateString('pt-BR', {
-                              day: '2-digit',
-                              month: '2-digit',
-                              hour: '2-digit',
-                              minute: '2-digit',
-                            })
-                          : 'Nunca'}
-                      </td>
-
-                      <td className="py-3.5 px-4 text-right">
-                        <div className="flex items-center justify-end gap-1">
+                        {/* Total Scans */}
+                        <td className="py-3.5 px-4 text-center">
                           <button
-                            type="button"
-                            onClick={() => setTagToWrite(tag)}
-                            title="Gravar Chip NFC Físico"
-                            className="p-1.5 text-blue-600 hover:text-white hover:bg-blue-600 rounded-lg transition cursor-pointer"
+                            onClick={() => setTagForHistory(tag)}
+                            title="Clique para ver histórico completo de leituras"
+                            className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-slate-100 hover:bg-blue-50 hover:text-blue-700 hover:border-blue-200 border border-slate-200 transition font-black text-slate-900 cursor-pointer"
                           >
-                            <Radio className="w-4 h-4 animate-pulse" />
+                            <BarChart2 className="w-3.5 h-3.5 text-blue-600" />
+                            <span>{tagScans.length}</span>
                           </button>
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() => handleCopyLink(tag.public_id)}
-                            title="Copiar URL pública da Tag"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                          >
-                            {copiedId === tag.public_id ? (
-                              <Check className="w-4 h-4 text-emerald-600" />
-                            ) : (
-                              <Copy className="w-4 h-4" />
-                            )}
-                          </button>
+                        {/* Last Scan & Local Time */}
+                        <td className="py-3.5 px-4 text-center">
+                          {relativeTime ? (
+                            <div className="flex flex-col items-center">
+                              <div className="flex items-center gap-1.5">
+                                <span
+                                  className={`px-1.5 py-0.5 rounded text-[9px] font-bold uppercase ${
+                                    relativeTime.method === 'QR Code'
+                                      ? 'bg-purple-100 text-purple-800'
+                                      : 'bg-emerald-100 text-emerald-800'
+                                  }`}
+                                >
+                                  {relativeTime.method}
+                                </span>
+                                <span className="font-bold text-slate-900 text-[11px]">
+                                  {relativeTime.primary}
+                                </span>
+                              </div>
+                              {relativeTime.secondary && (
+                                <span className="text-[10px] text-slate-400 mt-0.5 truncate max-w-[140px]">
+                                  {relativeTime.secondary}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-slate-400 italic text-[11px]">Aguardando toque</span>
+                          )}
+                        </td>
 
-                          <button
-                            type="button"
-                            onClick={() => setSelectedTagForQR(tag)}
-                            title="Ver QR Code e Imprimir"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                          >
-                            <QrCode className="w-4 h-4" />
-                          </button>
+                        {/* Action buttons */}
+                        <td className="py-3.5 px-4 text-right">
+                          <div className="flex items-center justify-end gap-1">
+                            {/* Ver histórico de leituras */}
+                            <button
+                              type="button"
+                              onClick={() => setTagForHistory(tag)}
+                              title="Ver Histórico e Telemetria da Tag"
+                              className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                            >
+                              <BarChart2 className="w-4 h-4" />
+                            </button>
 
-                          <Link
-                            to={`/t/${tag.public_id}`}
-                            target="_blank"
-                            title="Testar Redirecionamento"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </Link>
+                            {/* Gravar NFC */}
+                            <button
+                              type="button"
+                              onClick={() => setTagToWrite(tag)}
+                              title="Gravar Chip NFC Físico"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            >
+                              <Radio className="w-4 h-4" />
+                            </button>
 
-                          <button
-                            type="button"
-                            onClick={() => handleToggleStatus(tag)}
-                            title={tag.status === 'active' ? 'Pausar Tag' : 'Ativar Tag'}
-                            className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
-                          >
-                            {tag.status === 'active' ? (
-                              <PauseCircle className="w-4 h-4" />
-                            ) : (
-                              <PlayCircle className="w-4 h-4 text-emerald-600" />
-                            )}
-                          </button>
+                            {/* Copiar Link */}
+                            <button
+                              type="button"
+                              onClick={() => handleCopyLink(tag.public_id)}
+                              title="Copiar URL pública da Tag"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            >
+                              {copiedId === tag.public_id ? (
+                                <Check className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <Copy className="w-4 h-4" />
+                              )}
+                            </button>
 
-                          <Link
-                            to={`/dashboard/tags/${tag.id}`}
-                            title="Configurar Detalhes e Destino"
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition"
-                          >
-                            <Settings className="w-4 h-4" />
-                          </Link>
-                        </div>
-                      </td>
-                    </tr>
-                  )
-                })
-              )}
-            </tbody>
-          </table>
+                            {/* QR Code */}
+                            <button
+                              type="button"
+                              onClick={() => setSelectedTagForQR(tag)}
+                              title="Ver QR Code & Imprimir"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            >
+                              <QrCode className="w-4 h-4" />
+                            </button>
+
+                            {/* Testar redirecionamento */}
+                            <Link
+                              to={`/t/${tag.public_id}`}
+                              target="_blank"
+                              title="Testar Redirecionamento"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition"
+                            >
+                              <ExternalLink className="w-4 h-4" />
+                            </Link>
+
+                            {/* Pausar/Ativar */}
+                            <button
+                              type="button"
+                              onClick={() => handleToggleStatus(tag)}
+                              title={tag.status === 'active' ? 'Pausar Tag' : 'Ativar Tag'}
+                              className="p-1.5 text-slate-500 hover:text-amber-600 hover:bg-slate-100 rounded-lg transition cursor-pointer"
+                            >
+                              {tag.status === 'active' ? (
+                                <PauseCircle className="w-4 h-4 text-slate-400 hover:text-amber-600" />
+                              ) : (
+                                <PlayCircle className="w-4 h-4 text-emerald-600" />
+                              )}
+                            </button>
+
+                            {/* Configurar */}
+                            <Link
+                              to={`/dashboard/tags/${tag.id}`}
+                              title="Configurar Detalhes e Destino"
+                              className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-lg transition"
+                            >
+                              <Settings className="w-4 h-4" />
+                            </Link>
+                          </div>
+                        </td>
+                      </tr>
+                    )
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      ) : (
+        /* Grid / Card View */
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+          {filteredAndSortedTags.length === 0 ? (
+            <div className="col-span-full py-16 text-center text-slate-400 bg-white rounded-3xl border border-slate-200">
+              <Radio className="w-8 h-8 mx-auto mb-2 text-slate-300" />
+              <p className="font-semibold text-slate-600">Nenhuma Tag NFC encontrada</p>
+              <p className="text-slate-400 text-xs mt-0.5">Ajuste os filtros de busca para visualizar suas tags.</p>
+            </div>
+          ) : (
+            filteredAndSortedTags.map((tag) => {
+              const biz = businesses.find((b) => b.id === tag.business_id)
+              const dest = destinations.find((d) => d.tag_id === tag.id)
+              const tagScans = scansByTagId.get(tag.id) || []
+              const lastScan = tagScans.length > 0 ? tagScans[0] : null
+              const relativeTime = lastScan ? formatRelativeScanTime(lastScan) : null
 
+              return (
+                <div
+                  key={tag.id}
+                  className="bg-white rounded-3xl border border-slate-200 shadow-2xs hover:shadow-md hover:border-blue-200 transition p-5 flex flex-col justify-between relative group"
+                >
+                  {/* Top Bar inside Card */}
+                  <div>
+                    <div className="flex items-start justify-between gap-2 mb-3">
+                      <div className="flex items-center gap-2.5">
+                        <div className="w-10 h-10 rounded-2xl bg-blue-50 border border-blue-200 text-blue-600 flex items-center justify-center shrink-0">
+                          <Radio className="w-5 h-5" />
+                        </div>
+                        <div>
+                          <h3 className="font-bold text-slate-900 group-hover:text-blue-600 transition text-sm leading-tight">
+                            {tag.name}
+                          </h3>
+                          <span className="text-[10px] text-slate-400 font-mono">
+                            ID: {tag.public_id}
+                          </span>
+                        </div>
+                      </div>
+
+                      <span
+                        className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          tag.status === 'active'
+                            ? 'bg-emerald-50 text-emerald-700 border border-emerald-200'
+                            : 'bg-amber-50 text-amber-700 border border-amber-200'
+                        }`}
+                      >
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full ${
+                            tag.status === 'active' ? 'bg-emerald-500 animate-pulse' : 'bg-amber-500'
+                          }`}
+                        ></span>
+                        {tag.status === 'active' ? 'Ativa' : 'Pausada'}
+                      </span>
+                    </div>
+
+                    {/* Metadata chips */}
+                    <div className="space-y-2 py-3 border-y border-slate-100 text-xs">
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span className="text-[11px] text-slate-400 font-medium">Estabelecimento:</span>
+                        <span className="font-bold text-slate-800 truncate max-w-[170px]">
+                          {biz?.name || 'Não vinculado'}
+                        </span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span className="text-[11px] text-slate-400 font-medium">Local Físico:</span>
+                        <span className="font-medium text-slate-700">{tag.location || 'Sem local'}</span>
+                      </div>
+
+                      <div className="flex items-center justify-between text-slate-600">
+                        <span className="text-[11px] text-slate-400 font-medium">Destino:</span>
+                        <span className="font-bold text-blue-600 capitalize">
+                          {(dest?.type || 'google_review').replace('_', ' ')}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/* Telemetry info */}
+                    <div className="mt-3 p-3 bg-slate-50 rounded-2xl border border-slate-100 flex items-center justify-between">
+                      <div>
+                        <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                          Última Leitura
+                        </div>
+                        <div className="text-xs font-bold text-slate-900 mt-0.5">
+                          {relativeTime ? relativeTime.primary : 'Sem leituras ainda'}
+                        </div>
+                        {relativeTime?.secondary && (
+                          <div className="text-[10px] text-slate-500 mt-0.5">{relativeTime.secondary}</div>
+                        )}
+                      </div>
+
+                      <button
+                        onClick={() => setTagForHistory(tag)}
+                        title="Ver histórico de leituras"
+                        className="text-right bg-white p-2 rounded-xl border border-slate-200 shadow-2xs hover:bg-blue-50 transition cursor-pointer"
+                      >
+                        <div className="text-[10px] text-slate-400 font-bold uppercase">Leituras</div>
+                        <div className="text-base font-black text-blue-600">{tagScans.length}</div>
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Actions Bar */}
+                  <div className="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between">
+                    <div className="flex items-center gap-1">
+                      <button
+                        type="button"
+                        onClick={() => setTagForHistory(tag)}
+                        title="Histórico de Leituras"
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                      >
+                        <BarChart2 className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setTagToWrite(tag)}
+                        title="Gravar Chip NFC"
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                      >
+                        <Radio className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => setSelectedTagForQR(tag)}
+                        title="QR Code & Imprimir"
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                      >
+                        <QrCode className="w-4 h-4" />
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleCopyLink(tag.public_id)}
+                        title="Copiar Link"
+                        className="p-2 text-slate-500 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                      >
+                        {copiedId === tag.public_id ? (
+                          <Check className="w-4 h-4 text-emerald-600" />
+                        ) : (
+                          <Copy className="w-4 h-4" />
+                        )}
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={() => handleToggleStatus(tag)}
+                        title={tag.status === 'active' ? 'Pausar Tag' : 'Ativar Tag'}
+                        className="p-2 text-slate-500 hover:text-amber-600 hover:bg-slate-100 rounded-xl transition cursor-pointer"
+                      >
+                        {tag.status === 'active' ? (
+                          <PauseCircle className="w-4 h-4 text-slate-400 hover:text-amber-600" />
+                        ) : (
+                          <PlayCircle className="w-4 h-4 text-emerald-600" />
+                        )}
+                      </button>
+                    </div>
+
+                    <Link
+                      to={`/dashboard/tags/${tag.id}`}
+                      className="px-3 py-1.5 bg-slate-900 hover:bg-blue-600 text-white text-xs font-bold rounded-xl transition flex items-center gap-1.5"
+                    >
+                      <span>Configurar</span>
+                      <Settings className="w-3.5 h-3.5" />
+                    </Link>
+                  </div>
+                </div>
+              )
+            })
+          )}
+        </div>
+      )}
+
+      {/* Modals */}
       {selectedTagForQR && (
         <QRCodeModal tag={selectedTagForQR} onClose={() => setSelectedTagForQR(null)} />
       )}
 
       {tagToWrite && (
         <NFCWriterModal tag={tagToWrite} onClose={() => setTagToWrite(null)} />
+      )}
+
+      {tagForHistory && (
+        <TagScanHistoryModal
+          tag={tagForHistory}
+          scans={scansByTagId.get(tagForHistory.id) || []}
+          destination={destinations.find((d) => d.tag_id === tagForHistory.id)}
+          business={businesses.find((b) => b.id === tagForHistory.business_id)}
+          onClose={() => setTagForHistory(null)}
+        />
       )}
 
       {activateModalOpen && (

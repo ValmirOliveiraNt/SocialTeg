@@ -169,13 +169,26 @@ export const api = {
       }
       return request<TagScan[]>(url)
     },
-    async record(tagId: string, destinationType: string): Promise<void> {
+    async record(
+      tagId: string,
+      destinationType: string,
+      metadata?: {
+        reading_method?: string
+        local_time?: string
+        local_date?: string
+        timezone?: string
+        language?: string
+        screen?: string
+        referrer?: string
+      }
+    ): Promise<void> {
       try {
         await request('/api/scans', {
           method: 'POST',
           body: JSON.stringify({
             tag_id: tagId,
             destination_type: destinationType,
+            ...(metadata || {}),
           }),
         })
       } catch {}
