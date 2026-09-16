@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Previewer & Enhancer - Comparador Visual</title>
+  <style>
+    :root {
+      --bg: #0b1329;
+      --card: #152243;
+      --border: #233566;
+      --accent: #38bdf8;
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', system-ui, sans-serif; }
+    body { background: var(--bg); color: var(--text); padding: 24px; min-height: 100vh; }
+    .header { text-align: center; margin-bottom: 24px; }
+    .header h1 { font-size: 26px; color: var(--accent); margin-bottom: 6px; }
+    .header p { color: var(--text-muted); font-size: 14px; }
+    
+    .nav-links {
+      display: flex;
+      justify-content: center;
+      gap: 16px;
+      margin-top: 12px;
+    }
+    .nav-link {
+      color: #38bdf8;
+      text-decoration: none;
+      font-size: 13px;
+      background: rgba(56, 189, 248, 0.1);
+      padding: 6px 14px;
+      border-radius: 20px;
+      border: 1px solid rgba(56, 189, 248, 0.3);
+      transition: 0.2s;
+    }
+    .nav-link:hover { background: rgba(56, 189, 248, 0.25); }
+
+    .main-grid {
+      display: grid;
+      grid-template-columns: 1fr 340px;
+      gap: 24px;
+      max-width: 1280px;
+      margin: 0 auto;
+    }
+    @media (max-width: 900px) { .main-grid { grid-template-columns: 1fr; } }
+
+    .card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 20px;
+      box-shadow: 0 12px 30px rgba(0,0,0,0.5);
+    }
+
+    .preview-stage {
+      position: relative;
+      width: 100%;
+      height: 520px;
+      border-radius: 12px;
+      overflow: hidden;
+      background: #000;
+      user-select: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: ew-resize;
+    }
+    .preview-layer {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .layer-after {
+      width: 50%;
+      overflow: hidden;
+      border-right: 3px solid var(--accent);
+      z-index: 2;
+      background: #020617;
+    }
+    .layer-after-inner {
+      width: 100%;
+      height: 100%;
+      min-width: 900px;
+      display: flex; align-items: center; justify-content: center;
+    }
+    .slider-handle {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      width: 44px;
+      height: 44px;
+      border-radius: 50%;
+      background: var(--accent);
+      color: #0f172a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      box-shadow: 0 4px 15px rgba(56, 189, 248, 0.6);
+      cursor: ew-resize;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .badge {
+      position: absolute;
+      top: 14px;
+      padding: 6px 14px;
+      border-radius: 20px;
+      font-size: 12px;
+      font-weight: 700;
+      text-transform: uppercase;
+      z-index: 5;
+    }
+    .badge-before { right: 14px; background: rgba(0,0,0,0.7); color: #e2e8f0; }
+    .badge-after { left: 14px; background: #0284c7; color: #fff; }
+
+    .controls h2 { font-size: 18px; margin-bottom: 16px; border-bottom: 1px solid var(--border); padding-bottom: 10px; }
+    .control-group { margin-bottom: 16px; }
+    .control-group label { display: flex; justify-content: space-between; font-size: 13px; color: var(--text-muted); margin-bottom: 6px; }
+    input[type="range"] { width: 100%; accent-color: var(--accent); cursor: pointer; }
+
+    .btn-row { display: flex; gap: 10px; margin-top: 16px; }
+    .btn {
+      flex: 1;
+      padding: 11px 16px;
+      border-radius: 8px;
+      font-weight: 600;
+      font-size: 14px;
+      cursor: pointer;
+      border: none;
+      transition: 0.2s;
+    }
+    .btn-primary { background: #0284c7; color: #fff; }
+    .btn-primary:hover { background: #0369a1; }
+    .btn-secondary { background: #233566; color: #f8fafc; }
+    .btn-secondary:hover { background: #334e8e; }
+  </style>
+</head>
+<body>
+
+  <div class="header">
+    <h1>🎨 Visualizador & Aprimorador de Imagem</h1>
+    <p>Arraste a barra para comparar o rascunho com a versão melhorada em vetor de alta definição.</p>
+    <div class="nav-links">
+      <a href="/" class="nav-link">👉 Ir para o App AvaliaTag (Landing Page)</a>
+      <a href="/login" class="nav-link">🔐 Painel / Login</a>
+      <a href="/loja" class="nav-link">🛍️ Loja de Tags</a>
+    </div>
+  </div>
+
+  <div class="main-grid">
+    <div class="card">
+      <div class="preview-stage" id="stage">
+        <span class="badge badge-after">Melhorada (HD)</span>
+        <span class="badge badge-before">Rascunho Original</span>
+
+        <!-- Original -->
+        <div class="preview-layer" id="layerBefore">
+          <svg viewBox="0 0 900 700" width="85%">
+            <rect width="900" height="700" fill="#ffffff" />
+            <polygon points="210,210 350,60 410,210" fill="#ffffff" stroke="#1e293b" stroke-width="8" stroke-linejoin="round" />
+            <polygon points="410,210 350,60 760,80 810,240" fill="#ffffff" stroke="#78350f" stroke-width="8" stroke-linejoin="round" />
+            <polygon points="210,210 410,210 410,500 210,500" fill="#ffffff" stroke="#1e293b" stroke-width="8" />
+            <polygon points="410,210 810,240 810,500 410,500" fill="#ffffff" stroke="#1e293b" stroke-width="8" />
+            <!-- Telhas rascunhadas -->
+            <path d="M 370 100 Q 420 80 470 100 T 570 100 T 670 100 T 750 100" fill="none" stroke="#9a3412" stroke-width="6" stroke-linecap="round" />
+            <path d="M 390 140 Q 440 120 490 140 T 590 140 T 690 140 T 780 140" fill="none" stroke="#9a3412" stroke-width="6" stroke-linecap="round" />
+            <path d="M 400 180 Q 450 160 500 180 T 600 180 T 700 180 T 790 180" fill="none" stroke="#9a3412" stroke-width="6" stroke-linecap="round" />
+            <!-- Porta -->
+            <rect x="270" y="240" width="90" height="240" fill="#f1f5f9" stroke="#64748b" stroke-width="9" />
+            <circle cx="340" cy="370" r="6" fill="#64748b" />
+            <!-- Janela com traço verde rabiscado -->
+            <rect x="520" y="280" width="220" height="130" fill="#ffffff" stroke="#0d9488" stroke-width="8" />
+            <path d="M 430 250 C 420 370 430 460 480 470 C 580 480 750 490 780 440 C 790 350 780 250 750 240" fill="none" stroke="#0f766e" stroke-width="12" stroke-linecap="round" />
+            <!-- Árvore e Caminho -->
+            <path d="M 70 600 C 60 400, 180 300, 160 140" stroke="#16a34a" stroke-width="12" fill="none" stroke-linecap="round" />
+            <path d="M 70 650 L 250 510 M 130 670 L 280 510" stroke="#15803d" stroke-width="12" />
+          </svg>
+        </div>
+
+        <!-- Melhorada -->
+        <div class="preview-layer layer-after" id="layerAfter">
+          <div class="layer-after-inner" id="layerAfterInner">
+            <svg viewBox="0 0 900 700" width="85%" id="enhancedSvg">
+              <defs>
+                <linearGradient id="skyGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+                  <stop offset="0%" stop-color="#bae6fd"/><stop offset="100%" stop-color="#f0f9ff"/>
+                </linearGradient>
+                <linearGradient id="roofGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+                  <stop offset="0%" stop-color="#ea580c"/><stop offset="100%" stop-color="#9a3412"/>
+                </linearGradient>
+                <linearGradient id="wallGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+                  <stop offset="0%" stop-color="#f8fafc"/><stop offset="100%" stop-color="#e2e8f0"/>
+                </linearGradient>
+              </defs>
+              <rect width="900" height="700" fill="url(#skyGrad)"/>
+              <circle cx="780" cy="110" r="50" fill="#fde047" opacity="0.6"/>
+              <rect y="480" width="900" height="220" fill="#22c55e"/>
+              <!-- Tronco e Copa -->
+              <path d="M 120 580 C 110 420, 80 320, 130 220" stroke="#78350f" stroke-width="26" stroke-linecap="round" fill="none"/>
+              <circle cx="130" cy="180" r="85" fill="#15803d" />
+              <circle cx="170" cy="150" r="75" fill="#16a34a" />
+              <circle cx="90" cy="210" r="65" fill="#15803d" />
+              <!-- Caminho -->
+              <polygon points="120,680 230,680 300,530 250,530" fill="#94a3b8" opacity="0.7"/>
+              <rect x="135" y="640" width="90" height="25" rx="6" fill="#64748b" transform="skewX(-20)" />
+              <rect x="175" y="595" width="80" height="22" rx="6" fill="#94a3b8" transform="skewX(-20)" />
+              <rect x="210" y="555" width="70" height="20" rx="5" fill="#64748b" transform="skewX(-18)" />
+              <!-- Casa Principal -->
+              <polygon points="400,230 790,270 790,520 400,520" fill="url(#wallGrad)" stroke="#334155" stroke-width="4" />
+              <polygon points="370,225 780,265 830,95 440,65" fill="url(#roofGrad)" stroke="#7c2d12" stroke-width="3" />
+              <!-- Telhas -->
+              <g stroke="#7c2d12" stroke-width="3" fill="none" stroke-linecap="round">
+                <path d="M 430 85 Q 460 75, 490 85 T 550 85 T 610 85 T 670 90 T 730 95 T 790 100" />
+                <path d="M 415 115 Q 445 105, 475 115 T 535 115 T 595 115 T 655 120 T 715 125 T 775 130" />
+                <path d="M 400 145 Q 430 135, 460 145 T 520 145 T 580 145 T 640 150 T 700 155 T 760 160" />
+                <path d="M 385 175 Q 415 165, 445 175 T 505 175 T 565 175 T 625 180 T 685 185 T 745 190" />
+              </g>
+              <!-- Entrada -->
+              <polygon points="250,520 250,260 380,105 450,260 450,520" fill="#ffffff" stroke="#334155" stroke-width="4" />
+              <polyline points="240,268 380,100 460,268" fill="none" stroke="#475569" stroke-width="9"/>
+              <!-- Porta -->
+              <rect x="300" y="270" width="95" height="245" rx="4" fill="#334155"/>
+              <circle cx="370" cy="400" r="5" fill="#facc15"/>
+              <!-- Janela Teal -->
+              <path d="M 470 290 Q 450 350, 490 400 T 480 480 Q 560 500, 680 485 T 750 440 Q 760 350, 720 290" fill="none" stroke="#0d9488" stroke-width="7" />
+              <rect x="520" y="310" width="190" height="135" rx="6" fill="#bae6fd" stroke="#0f766e" stroke-width="5" />
+              <line x1="615" y1="310" x2="615" y2="445" stroke="#ffffff" stroke-width="3" />
+              <line x1="520" y1="377" x2="710" y2="377" stroke="#ffffff" stroke-width="3" />
+            </svg>
+          </div>
+        </div>
+
+        <div class="slider-handle" id="sliderHandle">⬌</div>
+      </div>
+    </div>
+
+    <div class="card controls">
+      <h2>Ajustes Visuais</h2>
+      <div class="control-group">
+        <label>Brilho <span id="valBri">100%</span></label>
+        <input type="range" id="rngBri" min="50" max="150" value="100">
+      </div>
+      <div class="control-group">
+        <label>Contraste <span id="valCon">100%</span></label>
+        <input type="range" id="rngCon" min="50" max="200" value="100">
+      </div>
+      <div class="control-group">
+        <label>Saturação <span id="valSat">100%</span></label>
+        <input type="range" id="rngSat" min="0" max="200" value="100">
+      </div>
+
+      <div class="btn-row">
+        <button class="btn btn-secondary" onclick="resetFilters()">Restaurar</button>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const stage = document.getElementById('stage');
+    const layerAfter = document.getElementById('layerAfter');
+    const layerAfterInner = document.getElementById('layerAfterInner');
+    const sliderHandle = document.getElementById('sliderHandle');
+    let isDragging = false;
+
+    function updateSlider(x) {
+      const rect = stage.getBoundingClientRect();
+      let pos = (x - rect.left) / rect.width;
+      pos = Math.max(0, Math.min(1, pos));
+      layerAfter.style.width = (pos * 100) + '%';
+      layerAfterInner.style.minWidth = rect.width + 'px';
+      sliderHandle.style.left = (pos * 100) + '%';
+    }
+
+    stage.addEventListener('mousedown', (e) => { isDragging = true; updateSlider(e.clientX); });
+    window.addEventListener('mouseup', () => isDragging = false);
+    window.addEventListener('mousemove', (e) => { if (isDragging) updateSlider(e.clientX); });
+
+    stage.addEventListener('touchstart', (e) => { isDragging = true; updateSlider(e.touches[0].clientX); });
+    window.addEventListener('touchend', () => isDragging = false);
+    window.addEventListener('touchmove', (e) => { if (isDragging) updateSlider(e.touches[0].clientX); });
+
+    window.addEventListener('resize', () => {
+      layerAfterInner.style.minWidth = stage.getBoundingClientRect().width + 'px';
+    });
+    layerAfterInner.style.minWidth = stage.getBoundingClientRect().width + 'px';
+
+    const rngBri = document.getElementById('rngBri');
+    const rngCon = document.getElementById('rngCon');
+    const rngSat = document.getElementById('rngSat');
+    const enhancedSvg = document.getElementById('enhancedSvg');
+
+    function applyFilters() {
+      document.getElementById('valBri').textContent = rngBri.value + '%';
+      document.getElementById('valCon').textContent = rngCon.value + '%';
+      document.getElementById('valSat').textContent = rngSat.value + '%';
+      enhancedSvg.style.filter = rightness(%) contrast(%) saturate(%);
+    }
+
+    [rngBri, rngCon, rngSat].forEach(el => el.addEventListener('input', applyFilters));
+
+    function resetFilters() {
+      rngBri.value = 100; rngCon.value = 100; rngSat.value = 100;
+      applyFilters();
+    }
+  </script>
+</body>
+</html>
