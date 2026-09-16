@@ -52,7 +52,7 @@ export const LandingPage: React.FC = () => {
     },
     {
       q: 'Como encontro meu link oficial do Google Avaliações para cadastrar?',
-      a: 'É muito simples: acesse o perfil da sua empresa no Google pelo próprio buscador ou Google Maps, clique em "Solicitar avaliações" e copie o link curto gerado pelo Google. Basta colar no painel da AvaliaTeg.',
+      a: 'É muito simples: acesse o perfil da sua empresa no Google pelo próprio buscador ou Google Maps, clique em "Solicitar avaliações" e copie o link curto gerado pelo Google. Basta colar no painel da SocialTag.',
     },
     {
       q: 'E se o cliente tiver um celular muito antigo sem NFC?',
@@ -147,7 +147,7 @@ export const LandingPage: React.FC = () => {
                   <div className="py-6 flex flex-col items-center text-center">
                     <img
                       src="/logo.png"
-                      alt="AvaliaTeg"
+                      alt="SocialTag"
                       className="w-36 h-auto mx-auto mb-4 object-contain rounded-2xl shadow-sm border border-slate-100 p-1 bg-white"
                     />
 
@@ -191,7 +191,7 @@ export const LandingPage: React.FC = () => {
               Fluxo Passo a Passo
             </h2>
             <p className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-              Como funciona a plataforma AvaliaTeg
+              Como funciona a plataforma SocialTag
             </p>
             <p className="text-slate-600 text-base mt-3">
               Da compra à primeira avaliação do seu cliente: um processo 100% intuitivo e sem complicação.

@@ -18,7 +18,7 @@ interface CartContextType {
 
 const CartContext = createContext<CartContextType | undefined>(undefined)
 
-const CART_STORAGE_KEY = 'avaliatag_cart'
+const CART_STORAGE_KEY = 'socialtag_cart'
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>(() => {

@@ -25,7 +25,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
       <div className="relative shrink-0 flex items-center justify-center">
         <img
           src="/logo.png"
-          alt="AvaliaTeg Logo"
+          alt="SocialTag Logo"
           className={`${heightClasses} w-auto object-contain rounded-xl`}
         />
       </div>
@@ -43,7 +43,7 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
                 : 'text-3xl'
             } ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
           >
-            Avalia<span className="text-blue-600">Teg</span>
+            Social<span className="text-blue-600">Tag</span>
           </span>
           <span
             className={`text-[9px] uppercase tracking-widest font-bold mt-0.5 ${

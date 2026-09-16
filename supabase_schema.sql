@@ -1,5 +1,5 @@
 -- ========================================================
--- SCHEMA OFICIAL SUPABASE - GOOGLE AVALIADOR (AVALIATAG)
+-- SCHEMA OFICIAL SUPABASE - SOCIALTAG
 -- Compatível com PostgreSQL + Supabase Auth + RLS + Vercel
 -- ========================================================
 

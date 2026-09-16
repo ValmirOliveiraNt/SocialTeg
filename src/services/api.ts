@@ -11,7 +11,7 @@ import {
 } from '../types'
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const token = localStorage.getItem('avaliatag_session_token')
+  const token = localStorage.getItem('socialtag_session_token')
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
     ...(token ? { Authorization: `Bearer ${token}` } : {}),

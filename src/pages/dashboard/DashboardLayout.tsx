@@ -52,7 +52,7 @@ export const DashboardLayout: React.FC = () => {
       <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4 flex items-center justify-between border-b border-slate-800">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-          <span className="font-medium">Painel do Cliente • AvaliaTeg SaaS</span>
+          <span className="font-medium">Painel do Cliente • SocialTag SaaS</span>
         </div>
         <div className="flex items-center gap-3">
           <Link to="/" className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1">

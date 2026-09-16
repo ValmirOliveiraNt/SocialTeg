@@ -279,7 +279,7 @@ export const NFCWriterModal: React.FC<NFCWriterModalProps> = ({ tag, onClose }) 
                 <div>
                   <strong className="text-slate-900 block text-xs">O link gravado deve ser HTTPS</strong>
                   <p className="text-[11px] text-slate-500 mt-0.5">
-                    O iOS bloqueia completamente links sem SSL (<code>http://</code> ou <code>localhost</code>). O link do AvaliaTeg (<code>https://avaliatag.pages.dev/t/...</code>) cumpre essa exigência 100%.
+                    O iOS bloqueia completamente links sem SSL (<code>http://</code> ou <code>localhost</code>). O link do SocialTag (<code>https://socialtag.pages.dev/t/...</code>) cumpre essa exigência 100%.
                   </p>
                 </div>
               </div>

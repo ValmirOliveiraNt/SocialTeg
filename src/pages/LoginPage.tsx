@@ -51,9 +51,9 @@ export const LoginPage: React.FC = () => {
       <main className="flex-1 flex items-center justify-center p-4 py-12">
         <div className="max-w-md w-full bg-white rounded-3xl p-8 border border-slate-200 shadow-xl">
           <div className="text-center mb-8">
-            <img src="/logo.png" alt="AvaliaTeg" className="h-16 w-auto mx-auto mb-3 object-contain rounded-xl" />
+            <img src="/logo.png" alt="SocialTag" className="h-16 w-auto mx-auto mb-3 object-contain rounded-xl" />
             <h1 className="text-2xl font-black text-slate-900">
-              {isRegister ? 'Criar Conta AvaliaTeg' : 'Acesse seu Painel AvaliaTeg'}
+              {isRegister ? 'Criar Conta SocialTag' : 'Acesse seu Painel SocialTag'}
             </h1>
             <p className="text-xs text-slate-500 mt-1">
               {isRegister
