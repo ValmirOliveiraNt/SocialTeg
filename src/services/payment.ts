@@ -110,8 +110,8 @@ export const PaymentGatewayService = {
       success: true,
       transactionId: 'TX-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
       orderId: res.orderId || orderId,
-      pixQrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020126580014br.gov.bcb.pix0136socialtag-pagamento@banco.com.br520400005303986540' + total.toFixed(2),
-      pixCopiaECola: '00020126580014br.gov.bcb.pix0136socialtag-pagamento@banco.com.br520400005303986540' + total.toFixed(2) + '5802BR5915SOCIALTAG6009SAOPAULO62070503***6304ABCD',
+      pixQrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020126580014br.gov.bcb.pix0136avaliatag-pagamento@banco.com.br520400005303986540' + total.toFixed(2),
+      pixCopiaECola: '00020126580014br.gov.bcb.pix0136avaliatag-pagamento@banco.com.br520400005303986540' + total.toFixed(2) + '5802BR5915AVALIATAG6009SAOPAULO62070503***6304ABCD',
       message: 'Pagamento processado com sucesso!',
     }
   }

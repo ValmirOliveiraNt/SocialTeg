@@ -33,7 +33,7 @@ export const StorePage: React.FC = () => {
         <div className="flex flex-col md:flex-row md:items-end justify-between mb-8 pb-6 border-b border-slate-200 gap-4">
           <div>
             <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
-              Loja Oficial SocialTag
+              Loja Oficial AvaliaTag
             </span>
             <h1 className="text-3xl font-black text-slate-900 mt-1">
               Displays e Tags NFC para Balcão e Mesas

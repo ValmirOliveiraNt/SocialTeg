@@ -104,8 +104,8 @@ export const PrintStandPage: React.FC = () => {
         <div className="border-t border-slate-200 pt-4 flex items-center justify-between text-[11px] text-slate-500">
           <span className="font-mono text-slate-400">ID: {tag.public_id}</span>
           <div className="flex items-center gap-1.5 font-bold text-slate-700">
-            <img src="/logo.png" alt="SocialTag" className="h-4 w-auto object-contain" />
-            <span>SocialTag NFC Inteligente</span>
+            <img src="/logo.png" alt="AvaliaTag" className="h-4 w-auto object-contain" />
+            <span>AvaliaTag NFC Inteligente</span>
           </div>
         </div>
       </div>

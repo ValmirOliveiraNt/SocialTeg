@@ -1,5 +1,5 @@
 {
-  "name": "socialtag",
+  "name": "avaliatag",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -9,7 +9,7 @@
     "lint": "oxlint",
     "typecheck": "tsc -b",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name socialtag --branch main"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name avaliatag --branch main"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.116.0",

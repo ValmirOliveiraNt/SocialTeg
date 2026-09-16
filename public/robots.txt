@@ -23,4 +23,4 @@ Allow: /
 User-agent: PerplexityBot
 Allow: /
 
-Sitemap: https://socialtag.pages.dev/sitemap.xml
+Sitemap: https://avaliatag.pages.dev/sitemap.xml

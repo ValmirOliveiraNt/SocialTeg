@@ -185,4 +185,4 @@ VALUES
 ('prod-3pack-stickers', 'Pack 3x Tags Adesivas NFC 3M Ultra Resistentes', 'Adesivos circulares epóxi impermeáveis com adesivo 3M para fixação em mesas e balcões.', 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&h=450&fit=crop', 99.9, 200, 'active', '["3 Unidades Epóxi blindadas", "Adesivo automotivo 3M", "Diâmetro de 35mm", "Métricas individuais por tag"]');
 
 INSERT OR IGNORE INTO users (id, name, email, phone, role, status, plan_id)
-VALUES ('u-admin', 'Administrador', 'admin@socialtag.com.br', '(11) 99999-0000', 'admin', 'active', 'plan-enterprise');
+VALUES ('u-admin', 'Administrador', 'admin@avaliatag.com.br', '(11) 99999-0000', 'admin', 'active', 'plan-enterprise');

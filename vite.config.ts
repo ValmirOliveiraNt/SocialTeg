@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://socialtag.pages.dev',
+        target: 'https://avaliatag.pages.dev',
         changeOrigin: true,
         secure: false,
       },
@@ -20,7 +20,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/api': {
-        target: 'https://socialtag.pages.dev',
+        target: 'https://avaliatag.pages.dev',
         changeOrigin: true,
         secure: false,
       },

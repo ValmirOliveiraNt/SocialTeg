@@ -83,7 +83,7 @@ export const AdminLayout: React.FC = () => {
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate">{currentUser?.name}</div>
-                <div className="text-[10px] text-purple-300 truncate">admin@socialtag.com.br</div>
+                <div className="text-[10px] text-purple-300 truncate">admin@avaliatag.com.br</div>
               </div>
             </div>
 

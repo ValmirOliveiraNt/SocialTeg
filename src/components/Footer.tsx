@@ -91,7 +91,7 @@ export const Footer: React.FC = () => {
         </div>
 
         <div className="pt-8 border-t border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-slate-500 gap-4">
-          <p>© {new Date().getFullYear()} SocialTag SaaS. Todos os direitos reservados.</p>
+          <p>© {new Date().getFullYear()} AvaliaTag SaaS. Todos os direitos reservados.</p>
           <div className="flex items-center gap-6">
             <span className="flex items-center gap-1">
               Desenvolvido com tecnologia NFC Dinâmica

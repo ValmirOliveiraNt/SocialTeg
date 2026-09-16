@@ -404,8 +404,8 @@ export const PublicTagRedirectPage: React.FC = () => {
 
         <div className="mt-4 text-center">
           <div className="inline-flex items-center gap-2 text-[11px] text-slate-500">
-            <img src="/logo.png" alt="SocialTag" className="h-5 w-auto object-contain" />
-            <span>Tag NFC Gerenciada por <strong>SocialTag</strong></span>
+            <img src="/logo.png" alt="AvaliaTag" className="h-5 w-auto object-contain" />
+            <span>Tag NFC Gerenciada por <strong>AvaliaTag</strong></span>
           </div>
         </div>
       </div>
