@@ -1,169 +1,181 @@
+import { requireSession, apiFailure } from '../_lib/session'
+
 interface Env {
   DB: D1Database
 }
 
-function parseUserAgent(ua: string): { device: string; os: string; browser: string } {
-  let device = 'Mobile'
-  if (/iPad|Tablet/i.test(ua)) device = 'Tablet'
-  else if (/Mobi|Android|iPhone/i.test(ua)) device = 'Mobile'
-  else device = 'Desktop'
-
-  let os = 'Outro'
-  if (/iPhone|iPad|iPod/i.test(ua)) os = 'iOS'
-  else if (/Android/i.test(ua)) os = 'Android'
-  else if (/Win/i.test(ua)) os = 'Windows'
-  else if (/Mac/i.test(ua)) os = 'macOS'
-  else if (/Linux/i.test(ua)) os = 'Linux'
-
-  let browser = 'Outro'
-  if (/Edg/i.test(ua)) browser = 'Edge'
-  else if (/Chrome|CriOS/i.test(ua)) browser = 'Chrome'
-  else if (/Safari/i.test(ua)) browser = 'Safari'
-  else if (/Firefox|FxiOS/i.test(ua)) browser = 'Firefox'
-
+export function parseUserAgent(ua: string) {
+  const device = !ua
+    ? 'Não identificado'
+    : /iPad|Tablet/i.test(ua) || (/Android/i.test(ua) && !/Mobile/i.test(ua))
+      ? 'Tablet'
+      : /Mobi|Android|iPhone/i.test(ua)
+        ? 'Mobile'
+        : 'Desktop'
+  const os = /iPhone|iPad|iPod/i.test(ua)
+    ? 'iOS'
+    : /Android/i.test(ua)
+      ? 'Android'
+      : /Win/i.test(ua)
+        ? 'Windows'
+        : /Mac/i.test(ua)
+          ? 'macOS'
+          : /Linux/i.test(ua)
+            ? 'Linux'
+            : 'Não identificado'
+  const browser = /Edg/i.test(ua)
+    ? 'Edge'
+    : /OPR|Opera/i.test(ua)
+      ? 'Opera'
+      : /Firefox|FxiOS/i.test(ua)
+        ? 'Firefox'
+        : /Chrome|CriOS/i.test(ua)
+          ? 'Chrome'
+          : /Safari/i.test(ua)
+            ? 'Safari'
+            : 'Não identificado'
   return { device, os, browser }
 }
 
-function formatScanRow(row: any) {
-  let meta: any = {}
+function formatScanRow(row: Record<string, any>) {
+  let meta: Record<string, any> = {}
   try {
-    if (row.ip_hash && row.ip_hash.startsWith('{')) {
-      meta = JSON.parse(row.ip_hash)
-    }
+    meta = JSON.parse(row.ip_hash || '{}') || {}
   } catch {}
-
-  const scanDate = new Date(row.scanned_at || Date.now())
-  const tz = meta.timezone || 'America/Sao_Paulo'
-
-  let localDate = meta.local_date
-  let localTime = meta.local_time
-
-  if (!localDate || !localTime) {
-    try {
-      localDate = scanDate.toLocaleDateString('pt-BR', { timeZone: tz, day: '2-digit', month: '2-digit', year: 'numeric' })
-      localTime = scanDate.toLocaleTimeString('pt-BR', { timeZone: tz, hour: '2-digit', minute: '2-digit', second: '2-digit' })
-    } catch {
-      localDate = scanDate.toISOString().split('T')[0]
-      localTime = scanDate.toISOString().split('T')[1]?.substring(0, 8) || ''
-    }
+  const normalized = /[zZ]|[+-]\d{2}:?\d{2}$/.test(row.scanned_at)
+    ? row.scanned_at
+    : row.scanned_at.replace(' ', 'T') + 'Z'
+  const scanned = new Date(normalized)
+  let timezone =
+    typeof meta.timezone === 'string' ? meta.timezone : 'America/Sao_Paulo'
+  try {
+    new Intl.DateTimeFormat('pt-BR', { timeZone: timezone })
+  } catch {
+    timezone = 'America/Sao_Paulo'
   }
-
-  const method =
-    meta.reading_method ||
-    (row.referrer && row.referrer.toLowerCase().includes('qr') ? 'QR Code' : null) ||
-    (row.referrer && row.referrer.toLowerCase().includes('nfc') ? 'NFC Aproximação' : null) ||
-    'NFC Aproximação'
-
+  const { ip_hash: _metadata, ...safe } = row
   return {
-    ...row,
-    local_date: localDate,
-    local_time: localTime,
-    timezone: tz,
-    reading_method: method,
+    ...safe,
+    timezone,
+    local_date: scanned.toLocaleDateString('pt-BR', { timeZone: timezone }),
+    local_time: scanned.toLocaleTimeString('pt-BR', { timeZone: timezone }),
+    reading_method:
+      meta.version === 2
+        ? { nfc: 'NFC Aproximação', qr: 'QR Code' }[meta.reading_method] ||
+          'Não identificada'
+        : 'Legado / não verificado',
     screen_resolution: meta.screen || null,
-    language: meta.language || 'pt-BR',
+    language: meta.language || null,
   }
 }
 
-export const onRequestGet: PagesFunction<Env> = async (context) => {
-  const url = new URL(context.request.url)
-  const tagId = url.searchParams.get('tag_id')
-  const ownerId = url.searchParams.get('owner_id')
-
+export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
+    const user = await requireSession(request, env.DB)
+    const url = new URL(request.url)
+    const tagId = url.searchParams.get('tag_id')
+    const ownerId =
+      user.role === 'admin' ? url.searchParams.get('owner_id') : user.id
+    const filters: string[] = []
+    const params: string[] = []
     if (tagId) {
-      const { results } = await context.env.DB.prepare(`
-        SELECT s.*, t.name as tag_name, t.location as tag_location, t.serial_number, t.business_id
-        FROM tag_scans s
-        JOIN nfc_tags t ON s.tag_id = t.id
-        WHERE s.tag_id = ?
-        ORDER BY s.scanned_at DESC
-        LIMIT 500
-      `).bind(tagId).all()
-      return Response.json((results || []).map(formatScanRow))
+      filters.push('s.tag_id = ?')
+      params.push(tagId)
     }
-
     if (ownerId) {
-      const { results } = await context.env.DB.prepare(`
-        SELECT s.*, t.name as tag_name, t.location as tag_location, t.serial_number, t.business_id
-        FROM tag_scans s
-        JOIN nfc_tags t ON s.tag_id = t.id
-        WHERE t.owner_id = ?
-        ORDER BY s.scanned_at DESC
-        LIMIT 500
-      `).bind(ownerId).all()
-      return Response.json((results || []).map(formatScanRow))
+      filters.push('t.owner_id = ?')
+      params.push(ownerId)
     }
-
-    const { results } = await context.env.DB.prepare(`
-      SELECT s.*, t.name as tag_name, t.location as tag_location, t.serial_number
-      FROM tag_scans s
-      LEFT JOIN nfc_tags t ON s.tag_id = t.id
-      ORDER BY s.scanned_at DESC
-      LIMIT 500
-    `).all()
-    return Response.json((results || []).map(formatScanRow))
-  } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 500 })
+    const { results } = await env.DB.prepare(
+      `
+      SELECT s.*, t.name as tag_name, t.location as tag_location, t.serial_number, t.business_id
+      FROM tag_scans s JOIN nfc_tags t ON s.tag_id = t.id
+      ${filters.length ? 'WHERE ' + filters.join(' AND ') : ''}
+      ORDER BY julianday(s.scanned_at) DESC LIMIT 500
+    `,
+    )
+      .bind(...params)
+      .all()
+    return Response.json((results || []).map(formatScanRow), {
+      headers: { 'Cache-Control': 'no-store' },
+    })
+  } catch (error) {
+    return apiFailure(error)
   }
 }
 
-export const onRequestPost: PagesFunction<Env> = async (context) => {
+export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
   try {
-    const data: any = await context.request.json()
-    const id = 'scan-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
-
-    const ua = context.request.headers.get('user-agent') || ''
-    const parsed = parseUserAgent(ua)
-
-    const cf: any = (context.request as any).cf || {}
-    const city = cf.city || context.request.headers.get('cf-ipcity') || data.city || ''
-    const region = cf.regionCode || cf.region || context.request.headers.get('cf-region') || data.region || ''
-    const country = cf.country || context.request.headers.get('cf-ipcountry') || data.country || 'BR'
-    const cfTz = cf.timezone || context.request.headers.get('cf-timezone') || data.timezone || 'America/Sao_Paulo'
-
-    let formattedLocation = ''
-    if (city && region) {
-      formattedLocation = `${city}, ${region}`
-    } else if (city) {
-      formattedLocation = city
-    } else if (region) {
-      formattedLocation = `${region}, ${country}`
-    } else {
-      formattedLocation = country === 'BR' ? 'Brasil' : country
-    }
-
-    const readingMethod = data.reading_method || (data.referrer?.toLowerCase().includes('qr') ? 'QR Code' : 'NFC Aproximação')
-    const nowIso = new Date().toISOString()
-
+    const data: any = await request.json()
+    if (!data || typeof data.tag_id !== 'string' || data.tag_id.length > 200)
+      return Response.json({ error: 'Tag inválida' }, { status: 400 })
+    if (
+      data.event_id !== undefined &&
+      (typeof data.event_id !== 'string' ||
+        !/^[0-9a-f-]{36}$/i.test(data.event_id))
+    )
+      return Response.json({ error: 'Evento inválido' }, { status: 400 })
+    const tag = await env.DB.prepare(
+      `SELECT t.id, d.type FROM nfc_tags t JOIN tag_destinations d ON d.tag_id = t.id
+      WHERE t.id = ? AND t.status = 'active' AND d.is_active = 1 ORDER BY d.updated_at DESC LIMIT 1`,
+    )
+      .bind(data.tag_id)
+      .first<{ id: string; type: string }>()
+    if (!tag)
+      return Response.json(
+        { error: 'Tag ou destino indisponível' },
+        { status: 404 },
+      )
+    const parsed = parseUserAgent(request.headers.get('user-agent') || '')
+    const cf = request.cf || ({} as Record<string, any>)
+    const text = (value: unknown, max = 120) =>
+      typeof value === 'string' ? value.slice(0, max) : ''
+    const country = text(cf.country)
+    const region = [text(cf.city), text(cf.region || cf.regionCode), country]
+      .filter(Boolean)
+      .join(', ')
+    const source = text(data.reading_method)
+    const readingMethod =
+      source === 'qr' || source === 'QR Code'
+        ? 'qr'
+        : source === 'nfc' || source === 'NFC Aproximação'
+          ? 'nfc'
+          : 'unknown'
+    const id = data.event_id
+      ? 'scan-' + data.event_id
+      : 'scan-' + crypto.randomUUID()
     const meta = {
+      version: data.telemetry_version === 2 ? 2 : 1,
+      event: 'page_view',
       reading_method: readingMethod,
-      local_time: data.local_time,
-      local_date: data.local_date,
-      timezone: cfTz,
-      screen: data.screen,
-      language: data.language,
+      timezone: text(cf.timezone || data.timezone),
+      screen: text(data.screen, 40),
+      language: text(data.language, 40),
     }
-
-    await context.env.DB.prepare(`
-      INSERT INTO tag_scans (id, tag_id, scanned_at, destination_type, device_type, operating_system, browser, country, region, referrer, ip_hash)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-    `).bind(
-      id,
-      data.tag_id,
-      nowIso,
-      data.destination_type || 'google_review',
-      parsed.device,
-      parsed.os,
-      parsed.browser,
-      country,
-      formattedLocation,
-      readingMethod,
-      JSON.stringify(meta)
-    ).run()
-
+    // Repeated submissions of the same page opening are idempotent, without tracking individual visitors.
+    await env.DB.prepare(
+      `INSERT OR IGNORE INTO tag_scans
+      (id, tag_id, scanned_at, destination_type, device_type, operating_system, browser, country, region, referrer, ip_hash)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    )
+      .bind(
+        id,
+        tag.id,
+        new Date().toISOString(),
+        tag.type,
+        parsed.device,
+        parsed.os,
+        parsed.browser,
+        country,
+        region,
+        text(data.referrer, 500),
+        JSON.stringify(meta),
+      )
+      .run()
     return Response.json({ success: true, id }, { status: 201 })
-  } catch (err: any) {
-    return Response.json({ error: err.message }, { status: 400 })
+  } catch (error) {
+    if (error instanceof SyntaxError)
+      return Response.json({ error: 'JSON inválido' }, { status: 400 })
+    return apiFailure(error)
   }
 }

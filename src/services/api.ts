@@ -9,6 +9,7 @@ import {
   TagScan,
   User,
 } from '../types'
+import type { Analytics } from '../types/analytics'
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const token = localStorage.getItem('avaliatag_session_token')
@@ -36,6 +37,13 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  analytics: {
+    get(days: number, businessId = '', signal?: AbortSignal): Promise<Analytics> {
+      const params = new URLSearchParams({ days: String(days) })
+      if (businessId) params.set('business_id', businessId)
+      return request<Analytics>(`/api/analytics?${params}`, { signal })
+    },
+  },
   auth: {
     async login(email: string, password = ''): Promise<{ user: User; token: string }> {
       return request<{ user: User; token: string }>('/api/auth', {
@@ -173,6 +181,7 @@ export const api = {
       tagId: string,
       destinationType: string,
       metadata?: {
+        event_id?: string
         reading_method?: string
         local_time?: string
         local_date?: string
@@ -185,8 +194,10 @@ export const api = {
       try {
         await request('/api/scans', {
           method: 'POST',
+          keepalive: true,
           body: JSON.stringify({
             tag_id: tagId,
+            telemetry_version: 2,
             destination_type: destinationType,
             ...(metadata || {}),
           }),

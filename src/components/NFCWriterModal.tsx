@@ -25,7 +25,7 @@ export const NFCWriterModal: React.FC<NFCWriterModalProps> = ({ tag, onClose }) 
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [copied, setCopied] = useState(false)
 
-  const publicUrl = getPublicTagUrl(tag.public_id)
+  const publicUrl = `${getPublicTagUrl(tag.public_id)}?src=nfc`
   const isWebNfcSupported = typeof window !== 'undefined' && 'NDEFReader' in window
 
   const handleStartWriting = async () => {
