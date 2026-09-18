@@ -654,10 +654,10 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
               total={total}
             />
             <Distribution
-              title="Destinos configurados"
-              subtitle="Destino principal da tag; não confirma clique ou avaliação."
+              title="Ações realmente abertas"
+              subtitle="Cliques registrados nos botões após a leitura da tag."
               items={data.destinations}
-              total={total}
+              total={data.destinations.reduce((sum, item) => sum + item.total, 0)}
             />
             <Distribution
               title="Local das tags acessadas"
@@ -859,7 +859,7 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
                       'Origem',
                       'Sistema / navegador',
                       'Local cadastrado da tag',
-                      'Destino configurado',
+                      'Destino principal na leitura',
                     ].map((h) => (
                       <th key={h} className="px-5 py-3 font-medium">
                         {h}
