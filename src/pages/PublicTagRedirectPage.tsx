@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useParams, Link } from 'react-router-dom'
 import {
   Star,
@@ -15,6 +15,7 @@ import { BusinessAvatar } from '../components/BusinessAvatar'
 
 export const PublicTagRedirectPage: React.FC = () => {
   const { publicId } = useParams<{ publicId: string }>()
+  const scanEvent = useRef({ publicId, id: crypto.randomUUID() })
   const [tag, setTag] = useState<NFCTag | null>(null)
   const [destination, setDestination] = useState<TagDestination | null>(null)
   const [business, setBusiness] = useState<Business | null>(null)
@@ -81,7 +82,8 @@ export const PublicTagRedirectPage: React.FC = () => {
       setBusiness(biz || null)
       setStatus('found_active')
 
-      if (dest) {
+      if (dest?.is_active && foundTag.status === 'active') {
+        if (scanEvent.current.publicId !== publicId) scanEvent.current = { publicId, id: crypto.randomUUID() }
         const searchParams = new URLSearchParams(window.location.search)
         const srcParam = searchParams.get('src')
         const method =
@@ -89,7 +91,7 @@ export const PublicTagRedirectPage: React.FC = () => {
             ? 'QR Code'
             : srcParam === 'nfc'
             ? 'NFC Aproximação'
-            : 'NFC Aproximação'
+            : 'unknown'
 
         const now = new Date()
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'
@@ -104,6 +106,7 @@ export const PublicTagRedirectPage: React.FC = () => {
         }
 
         api.scans.record(foundTag.id, dest.type, {
+          event_id: scanEvent.current.id,
           reading_method: method,
           local_date: localDateStr,
           local_time: localTimeStr,
