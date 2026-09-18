@@ -91,7 +91,9 @@ export const PublicTagRedirectPage: React.FC = () => {
             ? 'QR Code'
             : srcParam === 'nfc'
             ? 'NFC Aproximação'
-            : 'unknown'
+            : srcParam === 'direct'
+              ? 'Link direto'
+              : 'NFC provável / link antigo'
 
         const now = new Date()
         const timeZone = Intl.DateTimeFormat().resolvedOptions().timeZone || 'America/Sao_Paulo'
