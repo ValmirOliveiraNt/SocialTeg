@@ -431,7 +431,7 @@ export const CustomerTagEditPage: React.FC = () => {
                   {scans[0].region && (
                     <span className="text-[11px] text-slate-500 flex items-center gap-0.5">
                       <MapPin className="w-3 h-3 text-slate-400" />
-                      {scans[0].region}
+                      Rede aproximada: {scans[0].region}
                     </span>
                   )}
                 </>
@@ -1061,3 +1061,4 @@ export const CustomerTagEditPage: React.FC = () => {
     </div>
   )
 }
+

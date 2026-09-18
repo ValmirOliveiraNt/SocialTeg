@@ -54,8 +54,17 @@ function formatScanRow(row: Record<string, any>) {
     timezone = 'America/Sao_Paulo'
   }
   const { ip_hash: _metadata, ...safe } = row
+  const regionParts = String(row.region || '')
+    .split(',')
+    .map((part) => part.trim())
+    .filter(Boolean)
+  // Older records may contain city, state and country. City-level IP data is
+  // too imprecise for mobile networks, so expose only the broader estimate.
+  const broadRegion =
+    regionParts.length >= 3 ? regionParts.slice(-2).join(', ') : regionParts.join(', ')
   return {
     ...safe,
+    region: broadRegion,
     timezone,
     local_date: scanned.toLocaleDateString('pt-BR', { timeZone: timezone }),
     local_time: scanned.toLocaleTimeString('pt-BR', { timeZone: timezone }),
@@ -131,7 +140,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const text = (value: unknown, max = 120) =>
       typeof value === 'string' ? value.slice(0, max) : ''
     const country = text(cf.country)
-    const region = [text(cf.city), text(cf.region || cf.regionCode), country]
+    // IP geolocation can point to a mobile carrier or ISP gateway in another
+    // city. Keep only the broader state/country estimate and never present it
+    // as the tag's physical location.
+    const region = [text(cf.region || cf.regionCode), country]
       .filter(Boolean)
       .join(', ')
     const source = text(data.reading_method)
@@ -179,3 +191,4 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return apiFailure(error)
   }
 }
+
