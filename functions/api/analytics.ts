@@ -23,7 +23,7 @@ export function reportingWindow(now: Date, days: number) {
 
 const metadata = `CASE WHEN json_valid(s.ip_hash) THEN s.ip_hash ELSE '{}' END`
 const method = `CASE WHEN json_extract(${metadata}, '$.version') = 2 THEN
-  CASE json_extract(${metadata}, '$.reading_method') WHEN 'nfc' THEN 'NFC' WHEN 'qr' THEN 'QR Code' ELSE 'Não identificada' END
+  CASE json_extract(${metadata}, '$.reading_method') WHEN 'nfc' THEN 'NFC' WHEN 'qr' THEN 'QR Code' WHEN 'direct' THEN 'Link direto' WHEN 'nfc_legacy' THEN 'NFC provável / link antigo' WHEN 'unknown' THEN 'NFC provável / link antigo' ELSE 'Não identificada' END
   ELSE 'Legado / não verificado' END`
 const eventType = `CASE WHEN json_extract(${metadata}, '$.version') = 2 THEN COALESCE(json_extract(${metadata}, '$.event'), 'page_view') ELSE 'page_view' END`
 

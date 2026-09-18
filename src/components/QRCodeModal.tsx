@@ -27,9 +27,10 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
 
   const publicUrl = getPublicTagUrl(tag.public_id)
   const qrUrl = `${publicUrl}?src=qr`
+  const directUrl = `${publicUrl}?src=direct`
 
   const handleCopy = () => {
-    navigator.clipboard.writeText(publicUrl)
+    navigator.clipboard.writeText(directUrl)
     setCopied(true)
     setTimeout(() => setCopied(false), 2500)
   }
@@ -102,7 +103,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
             <input
               type="text"
               readOnly
-              value={publicUrl}
+              value={directUrl}
               className="flex-1 px-3 py-2 text-xs font-mono bg-slate-100 border border-slate-200 rounded-lg text-slate-700 focus:outline-hidden"
             />
             <button
@@ -143,7 +144,7 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
           </div>
 
           <a
-            href={publicUrl}
+            href={directUrl}
             target="_blank"
             rel="noreferrer"
             className="w-full inline-flex items-center justify-center gap-1 text-xs text-blue-600 hover:text-blue-700 font-medium py-1"
@@ -160,3 +161,4 @@ export const QRCodeModal: React.FC<QRCodeModalProps> = ({ tag, onClose }) => {
     </div>
   )
 }
+

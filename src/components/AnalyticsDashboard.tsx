@@ -73,8 +73,12 @@ const statuses: Record<string, string> = {
 const accessStyle = (method: string) =>
   method === 'NFC'
     ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : method === 'NFC provável / link antigo'
+      ? 'bg-teal-50 text-teal-700 border-teal-200'
     : method === 'QR Code'
       ? 'bg-violet-50 text-violet-700 border-violet-200'
+      : method === 'Link direto'
+        ? 'bg-blue-50 text-blue-700 border-blue-200'
       : method === 'Legado / não verificado'
         ? 'bg-amber-50 text-amber-700 border-amber-200'
         : 'bg-slate-100 text-slate-600 border-slate-200'
