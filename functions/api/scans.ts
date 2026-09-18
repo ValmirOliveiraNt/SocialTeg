@@ -70,7 +70,12 @@ function formatScanRow(row: Record<string, any>) {
     local_time: scanned.toLocaleTimeString('pt-BR', { timeZone: timezone }),
     reading_method:
       meta.version === 2
-        ? { nfc: 'NFC Aproximação', qr: 'QR Code' }[meta.reading_method] ||
+        ? {
+            nfc: 'NFC Aproximação',
+            qr: 'QR Code',
+            direct: 'Link direto',
+            nfc_legacy: 'NFC provável / link antigo',
+          }[meta.reading_method] ||
           'Não identificada'
         : 'Legado / não verificado',
     screen_resolution: meta.screen || null,
@@ -152,6 +157,10 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         ? 'qr'
         : source === 'nfc' || source === 'NFC Aproximação'
           ? 'nfc'
+          : source === 'direct' || source === 'Link direto'
+            ? 'direct'
+            : source === 'NFC provável / link antigo'
+              ? 'nfc_legacy'
           : 'unknown'
     const id = data.event_id
       ? 'scan-' + data.event_id
