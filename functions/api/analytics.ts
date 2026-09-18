@@ -101,7 +101,12 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         CASE WHEN TRIM(COALESCE(b.city,'')) <> '' THEN TRIM(b.city || CASE WHEN TRIM(COALESCE(b.state,'')) <> '' THEN ' - ' || b.state ELSE '' END) ELSE '' END AS business_location,
         s.operating_system, s.browser,
         CASE WHEN TRIM(COALESCE(b.city,'')) <> '' THEN TRIM(b.city || CASE WHEN TRIM(COALESCE(b.state,'')) <> '' THEN ' - ' || b.state ELSE '' END) ELSE '' END AS region,
-        s.destination_type, ${method} AS method
+        s.destination_type, ${method} AS method,
+        (SELECT a.destination_type FROM tag_scans a
+          WHERE json_valid(a.ip_hash)
+          AND json_extract(a.ip_hash, '$.event') = 'destination_open'
+          AND json_extract(a.ip_hash, '$.parent_event_id') = REPLACE(s.id, 'scan-', '')
+          ORDER BY julianday(a.scanned_at), a.id LIMIT 1) AS opened_destination
         ${from}${period} ORDER BY julianday(s.scanned_at) DESC, s.id DESC LIMIT 20`,
         current,
       ),
