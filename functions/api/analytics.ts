@@ -25,6 +25,7 @@ const metadata = `CASE WHEN json_valid(s.ip_hash) THEN s.ip_hash ELSE '{}' END`
 const method = `CASE WHEN json_extract(${metadata}, '$.version') = 2 THEN
   CASE json_extract(${metadata}, '$.reading_method') WHEN 'nfc' THEN 'NFC' WHEN 'qr' THEN 'QR Code' ELSE 'Não identificada' END
   ELSE 'Legado / não verificado' END`
+const eventType = `CASE WHEN json_extract(${metadata}, '$.version') = 2 THEN COALESCE(json_extract(${metadata}, '$.event'), 'page_view') ELSE 'page_view' END`
 
 export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
   try {
@@ -45,7 +46,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       scope.push(businessId)
     }
     const where = conditions.join(' AND ')
-    const from = `FROM tag_scans s JOIN nfc_tags t ON t.id = s.tag_id LEFT JOIN businesses b ON b.id = t.business_id WHERE ${where}`
+    const rawFrom = `FROM tag_scans s JOIN nfc_tags t ON t.id = s.tag_id LEFT JOIN businesses b ON b.id = t.business_id WHERE ${where}`
+    const from = `${rawFrom} AND ${eventType} = 'page_view'`
+    const actionFrom = `${rawFrom} AND ${eventType} = 'destination_open'`
     const period = ` AND julianday(s.scanned_at) >= julianday(?) AND julianday(s.scanned_at) <= julianday(?)`
     const current = [...scope, iso(w.start), iso(w.end)]
     const statement = (sql: string, values: (string | number)[] = []) =>
@@ -78,7 +81,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ),
       group(method),
       group(`COALESCE(NULLIF(s.operating_system,''), 'Não identificado')`),
-      group(`COALESCE(NULLIF(s.destination_type,''), 'Não informado')`),
+      statement(
+        `SELECT COALESCE(NULLIF(s.destination_type,''), 'Não informado') AS label, COUNT(*) AS total ${actionFrom}${period} GROUP BY label ORDER BY total DESC, label`,
+        current,
+      ),
       group(`CASE
         WHEN TRIM(COALESCE(b.city,'')) <> '' THEN TRIM(b.city || CASE WHEN TRIM(COALESCE(b.state,'')) <> '' THEN ' - ' || b.state ELSE '' END)
         ELSE 'Local não cadastrado'
