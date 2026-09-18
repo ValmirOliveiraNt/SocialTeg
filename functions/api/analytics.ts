@@ -79,7 +79,10 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       group(method),
       group(`COALESCE(NULLIF(s.operating_system,''), 'Não identificado')`),
       group(`COALESCE(NULLIF(s.destination_type,''), 'Não informado')`),
-      group(`COALESCE(NULLIF(s.region,''), 'Não informada')`),
+      group(`CASE
+        WHEN TRIM(COALESCE(b.city,'')) <> '' THEN TRIM(b.city || CASE WHEN TRIM(COALESCE(b.state,'')) <> '' THEN ' - ' || b.state ELSE '' END)
+        ELSE 'Local não cadastrado'
+      END`),
       statement(
         `SELECT t.id, t.name, t.location, t.status, b.name AS business, COUNT(s.id) AS total, MAX(s.scanned_at) AS last_scan
         FROM nfc_tags t LEFT JOIN businesses b ON b.id = t.business_id LEFT JOIN tag_scans s ON s.tag_id = t.id
@@ -88,7 +91,9 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
         [iso(w.start), iso(w.end), ...scope],
       ),
       statement(
-        `SELECT s.id, s.scanned_at, t.name, t.location, s.operating_system, s.browser, s.region, s.destination_type, ${method} AS method
+        `SELECT s.id, s.scanned_at, t.name, t.location,
+        CASE WHEN TRIM(COALESCE(b.city,'')) <> '' THEN TRIM(b.city || CASE WHEN TRIM(COALESCE(b.state,'')) <> '' THEN ' - ' || b.state ELSE '' END) ELSE '' END AS business_location,
+        s.operating_system, s.browser, s.region, s.destination_type, ${method} AS method
         ${from}${period} ORDER BY julianday(s.scanned_at) DESC, s.id DESC LIMIT 20`,
         current,
       ),
@@ -180,3 +185,4 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return apiFailure(error)
   }
 }
+
