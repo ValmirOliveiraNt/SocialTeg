@@ -415,13 +415,13 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
               <Change value={total} previous={data.summary.previous} />
             </Card>
             <Card
-              title="Tags com movimento"
+              title="Tags acessadas"
               value={number(data.summary.active_tags)}
-              detail={`${number(data.inventory.active)} tags ativas de ${number(data.inventory.tags)} cadastradas`}
+              detail={`${number(data.summary.active_tags)} receberam acesso · ${number(data.inventory.active)} ativas`}
               icon={Radio}
             >
               <span className="text-xs text-slate-500">
-                {number(data.inventory.silent)} ativas sem acesso no período
+                {number(data.inventory.silent)} tags ativas sem acessos no período
               </span>
             </Card>
             {admin && data.admin ? (
@@ -610,7 +610,7 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
                 />
                 <Insight
                   value={number(data.inventory.silent)}
-                  title="Tags ativas sem movimento"
+                  title="Tags ativas sem acessos"
                   description={`Nenhum acesso nos ${days} dias selecionados. Confira exposição e funcionamento.`}
                   href={`${base}/tags`}
                 />
@@ -660,8 +660,8 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
               total={total}
             />
             <Distribution
-              title="Regiões dos acessos"
-              subtitle="Localização aproximada da rede, quando disponível. Top 6."
+              title="Local das tags acessadas"
+              subtitle="Cidade/UF cadastrada no estabelecimento da tag. Top 6."
               items={data.regions}
               total={total}
             />
@@ -858,7 +858,7 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
                       'Tag',
                       'Origem',
                       'Sistema / navegador',
-                      'Região aproximada',
+                      'Local cadastrado da tag',
                       'Destino configurado',
                     ].map((h) => (
                       <th key={h} className="px-5 py-3 font-medium">
@@ -882,7 +882,9 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
                         {s.browser || 'Não identificado'}
                       </td>
                       <td className="px-5 py-3 text-slate-500">
-                        {s.region || 'Não informada'}
+                        {[s.location, s.business_location]
+                          .filter(Boolean)
+                          .join(' · ') || 'Não cadastrado'}
                       </td>
                       <td className="px-5 py-3 text-slate-500">
                         {destinations[s.destination_type] || s.destination_type}
@@ -962,3 +964,4 @@ function Insight({
     </div>
   )
 }
+
