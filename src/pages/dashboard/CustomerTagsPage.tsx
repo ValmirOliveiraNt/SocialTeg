@@ -45,7 +45,7 @@ function formatRelativeScanTime(scan: TagScan): { primary: string; secondary?: s
     const isToday = scan.local_date === todayStr
     return {
       primary: isToday ? `Hoje às ${scan.local_time}` : `${scan.local_date} às ${scan.local_time}`,
-      secondary: scan.region || undefined,
+      secondary: scan.region ? `Rede aproximada: ${scan.region}` : undefined,
       method,
     }
   }
@@ -65,7 +65,7 @@ function formatRelativeScanTime(scan: TagScan): { primary: string; secondary?: s
 
   return {
     primary: isToday ? `Hoje às ${timeStr}` : `${dateStr} às ${timeStr}`,
-    secondary: scan.region || undefined,
+    secondary: scan.region ? `Rede aproximada: ${scan.region}` : undefined,
     method,
   }
 }
@@ -841,3 +841,4 @@ export const CustomerTagsPage: React.FC = () => {
     </div>
   )
 }
+
