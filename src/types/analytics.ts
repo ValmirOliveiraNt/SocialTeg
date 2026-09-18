@@ -36,6 +36,7 @@ export interface Analytics {
     scanned_at: string
     name: string
     location: string
+    business_location: string
     operating_system: string
     browser: string
     region: string
@@ -69,3 +70,4 @@ export interface Analytics {
     }[]
   }
 }
+
