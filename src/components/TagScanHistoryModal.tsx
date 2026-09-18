@@ -172,7 +172,9 @@ export const TagScanHistoryModal: React.FC<TagScanHistoryModalProps> = ({
                 : 'Nenhuma leitura'}
             </div>
             <div className="text-[10px] text-slate-400 mt-0.5 truncate">
-              {sortedScans[0]?.region || 'Aguardando primeiro toque'}
+              {sortedScans[0]?.region
+                ? `Rede aproximada: ${sortedScans[0].region}`
+                : 'Aguardando primeiro acesso'}
             </div>
           </div>
         </div>
@@ -269,7 +271,7 @@ export const TagScanHistoryModal: React.FC<TagScanHistoryModalProps> = ({
                           {scan.region && (
                             <span className="flex items-center gap-1">
                               <MapPin className="w-3 h-3 text-slate-400" />
-                              {scan.region}
+                              Rede aproximada: {scan.region}
                             </span>
                           )}
 
@@ -309,3 +311,4 @@ export const TagScanHistoryModal: React.FC<TagScanHistoryModalProps> = ({
     </div>
   )
 }
+
