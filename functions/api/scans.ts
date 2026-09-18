@@ -156,9 +156,19 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const id = data.event_id
       ? 'scan-' + data.event_id
       : 'scan-' + crypto.randomUUID()
+    const eventType =
+      data.event_type === 'destination_open' ? 'destination_open' : 'page_view'
+    const clickedDestination = [
+      'google_review',
+      'instagram',
+      'whatsapp',
+      'website',
+    ].includes(data.destination_type)
+      ? data.destination_type
+      : tag.type
     const meta = {
       version: data.telemetry_version === 2 ? 2 : 1,
-      event: 'page_view',
+      event: eventType,
       reading_method: readingMethod,
       timezone: text(cf.timezone || data.timezone),
       screen: text(data.screen, 40),
@@ -174,7 +184,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         id,
         tag.id,
         new Date().toISOString(),
-        tag.type,
+        eventType === 'destination_open' ? clickedDestination : tag.type,
         parsed.device,
         parsed.os,
         parsed.browser,

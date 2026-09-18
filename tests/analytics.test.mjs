@@ -92,6 +92,11 @@ test('aggregates more than 500 events and isolates customer, business, dates and
   const w = reportingWindow(now, 7)
   for (let i = 0; i < 601; i++)
     f.insert('s' + i, 'ta', new Date(now.getTime() - 1000).toISOString())
+  f.insert('click', 'ta', now.toISOString(), {
+    version: 2,
+    event: 'destination_open',
+    reading_method: 'unknown',
+  })
   f.insert('other', 'tb', now.toISOString())
   f.insert('past', 'ta', new Date(w.previous + 1000).toISOString())
   f.insert('old', 'ta', '2020-01-01 00:00:00')
@@ -103,6 +108,7 @@ test('aggregates more than 500 events and isolates customer, business, dates and
   assert.equal(data.summary.previous, 1)
   assert.equal(data.summary.identified, 601)
   assert.equal(data.summary.active_tags, 1)
+  assert.equal(data.destinations[0].total, 1)
   assert.equal(data.inventory.silent, 1)
   assert.equal(data.recent.length, 20)
   assert.equal(data.timeline.length, 7)
@@ -227,3 +233,4 @@ test('Firefox iOS and Android tablets are classified correctly', () => {
   assert.equal(parseUserAgent('Mozilla Android 12 Chrome/100').device, 'Tablet')
   assert.equal(parseUserAgent('').device, 'Não identificado')
 })
+

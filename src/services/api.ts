@@ -182,6 +182,7 @@ export const api = {
       destinationType: string,
       metadata?: {
         event_id?: string
+        event_type?: 'page_view' | 'destination_open'
         reading_method?: string
         local_time?: string
         local_date?: string
@@ -271,3 +272,4 @@ export const api = {
     },
   },
 }
+

@@ -129,6 +129,14 @@ export const PublicTagRedirectPage: React.FC = () => {
         setCountdown((prev) => {
           if (prev <= 1) {
             clearInterval(timer)
+            if (tag) {
+              api.scans.record(tag.id, destination.type, {
+                event_id: crypto.randomUUID(),
+                event_type: 'destination_open',
+                reading_method: 'unknown',
+                referrer: 'direct_redirect',
+              })
+            }
             window.location.href = destination.target_url
             return 0
           }
@@ -138,7 +146,7 @@ export const PublicTagRedirectPage: React.FC = () => {
 
       return () => clearInterval(timer)
     }
-  }, [status, destination])
+  }, [status, destination, tag])
 
   if (loading) {
     return (
@@ -469,6 +477,15 @@ export const PublicTagRedirectPage: React.FC = () => {
                 primaryColor={primaryColor}
                 fallbackUrl={destination?.target_url}
                 fallbackType={destination?.type}
+                onAction={(destinationType) => {
+                  if (!tag) return
+                  api.scans.record(tag.id, destinationType, {
+                    event_id: crypto.randomUUID(),
+                    event_type: 'destination_open',
+                    reading_method: 'unknown',
+                    referrer: 'public_page_action',
+                  })
+                }}
               />
 
               {business?.phone && !whatsappEnabled && (
