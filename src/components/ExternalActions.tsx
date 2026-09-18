@@ -17,6 +17,7 @@ export interface ExternalActionsProps {
   className?: string
   fallbackUrl?: string | null
   fallbackType?: string | null
+  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website') => void
 }
 
 function checkValidUrl(url: string | null | undefined): boolean {
@@ -44,6 +45,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   className = '',
   fallbackUrl,
   fallbackType,
+  onAction,
 }) => {
   let cleanMenuUrl = checkValidUrl(menuUrl) ? menuUrl!.trim() : null
   let cleanGoogleUrl = checkValidUrl(googleReviewsUrl) ? googleReviewsUrl!.trim() : null
@@ -77,6 +79,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     ariaLabel: string
     style?: React.CSSProperties
     className: string
+    destinationType: 'google_review' | 'instagram' | 'whatsapp' | 'website'
   }> = []
 
   // 1. Cardápio Online
@@ -93,6 +96,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
       ),
       className:
         'bg-slate-900 hover:bg-slate-800 active:bg-slate-950 text-white shadow-sm hover:shadow-md border border-slate-800',
+      destinationType: 'website',
     })
   }
 
@@ -111,6 +115,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
       ),
       className:
         'text-white shadow-md hover:shadow-lg filter hover:brightness-105 active:brightness-95',
+      destinationType: 'google_review',
     })
   }
 
@@ -128,6 +133,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
       ),
       className:
         'bg-gradient-to-r from-purple-600 via-pink-600 to-amber-500 hover:opacity-95 active:opacity-90 text-white shadow-sm hover:shadow-md',
+      destinationType: 'instagram',
     })
   }
 
@@ -145,6 +151,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
       ),
       className:
         'bg-emerald-600 hover:bg-emerald-700 active:bg-emerald-800 text-white shadow-sm hover:shadow-md border border-emerald-600',
+      destinationType: 'whatsapp',
     })
   }
 
@@ -176,6 +183,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
             href={action.url}
             target="_blank"
             rel="noopener noreferrer"
+            onClick={() => onAction?.(action.destinationType)}
             aria-label={action.ariaLabel}
             style={action.style}
             className={`min-h-[48px] py-3 px-4 rounded-2xl font-bold text-xs sm:text-sm flex items-center justify-center gap-2 transition-all duration-200 transform hover:-translate-y-0.5 focus:outline-hidden focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${action.className}`}
@@ -189,3 +197,4 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     </nav>
   )
 }
+
