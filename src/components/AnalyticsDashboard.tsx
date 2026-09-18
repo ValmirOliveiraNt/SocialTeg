@@ -70,6 +70,18 @@ const statuses: Record<string, string> = {
   lost: 'Perdida',
 }
 
+const accessStyle = (method: string) =>
+  method === 'NFC'
+    ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+    : method === 'QR Code'
+      ? 'bg-violet-50 text-violet-700 border-violet-200'
+      : method === 'Legado / não verificado'
+        ? 'bg-amber-50 text-amber-700 border-amber-200'
+        : 'bg-slate-100 text-slate-600 border-slate-200'
+
+const cityState = (value: string) =>
+  value ? value.replace(/\s+-\s+/, '/') : 'Não cadastrado'
+
 function Change({ value, previous }: { value: number; previous: number }) {
   if (!previous)
     return (
@@ -850,18 +862,19 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
               </p>
             </div>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[740px] text-left text-xs">
-                <thead className="bg-slate-50 text-slate-500">
+              <table className="w-full min-w-[980px] text-left text-xs">
+                <thead className="border-y border-slate-200 bg-slate-50/80 text-slate-500">
                   <tr>
                     {[
                       'Data e hora',
                       'Tag',
-                      'Origem',
-                      'Sistema / navegador',
-                      'Local cadastrado da tag',
-                      'Destino principal na leitura',
+                      'Forma de acesso',
+                      'Dispositivo',
+                      'Cidade/UF',
+                      'Ponto físico',
+                      'Primeiro destino aberto',
                     ].map((h) => (
-                      <th key={h} className="px-5 py-3 font-medium">
+                      <th key={h} className="whitespace-nowrap px-5 py-3 font-semibold">
                         {h}
                       </th>
                     ))}
@@ -869,25 +882,49 @@ export function AnalyticsDashboard({ admin = false }: { admin?: boolean }) {
                 </thead>
                 <tbody className="divide-y divide-slate-100">
                   {data.recent.map((s) => (
-                    <tr key={s.id} className="hover:bg-slate-50">
-                      <td className="whitespace-nowrap px-5 py-3 text-slate-500">
-                        {date(s.scanned_at, true)}
+                    <tr key={s.id} className="group hover:bg-indigo-50/40">
+                      <td className="whitespace-nowrap px-5 py-3.5">
+                        <span className="font-semibold text-slate-700">
+                          {date(s.scanned_at, true)}
+                        </span>
                       </td>
-                      <td className="px-5 py-3 font-semibold text-slate-800">
-                        {s.name}
+                      <td className="px-5 py-3.5">
+                        <span className="font-semibold text-slate-900">{s.name}</span>
                       </td>
-                      <td className="px-5 py-3 text-slate-500">{s.method}</td>
-                      <td className="px-5 py-3 text-slate-500">
-                        {s.operating_system || 'Não identificado'} ·{' '}
-                        {s.browser || 'Não identificado'}
+                      <td className="px-5 py-3.5">
+                        <span
+                          className={`inline-flex whitespace-nowrap rounded-full border px-2.5 py-1 text-[11px] font-semibold ${accessStyle(s.method)}`}
+                          title={
+                            s.method === 'Legado / não verificado'
+                              ? 'Registro anterior à identificação confiável de NFC e QR Code'
+                              : undefined
+                          }
+                        >
+                          {s.method}
+                        </span>
                       </td>
-                      <td className="px-5 py-3 text-slate-500">
-                        {[s.location, s.business_location]
-                          .filter(Boolean)
-                          .join(' · ') || 'Não cadastrado'}
+                      <td className="px-5 py-3.5 text-slate-600">
+                        <span className="font-medium text-slate-700">
+                          {s.operating_system || 'Não identificado'}
+                        </span>
+                        <span className="text-slate-400"> · {s.browser || 'Navegador não identificado'}</span>
                       </td>
-                      <td className="px-5 py-3 text-slate-500">
-                        {destinations[s.destination_type] || s.destination_type}
+                      <td className="whitespace-nowrap px-5 py-3.5 font-medium text-slate-700">
+                        {cityState(s.business_location)}
+                      </td>
+                      <td className="px-5 py-3.5">
+                        <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1 font-medium text-slate-700">
+                          {s.location || 'Não cadastrado'}
+                        </span>
+                      </td>
+                      <td className="px-5 py-3.5">
+                        {s.opened_destination ? (
+                          <span className="inline-flex whitespace-nowrap rounded-full border border-indigo-200 bg-indigo-50 px-2.5 py-1 font-semibold text-indigo-700">
+                            {destinations[s.opened_destination] || s.opened_destination}
+                          </span>
+                        ) : (
+                          <span className="whitespace-nowrap text-slate-400">Não abriu um destino</span>
+                        )}
                       </td>
                     </tr>
                   ))}
