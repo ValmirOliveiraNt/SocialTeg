@@ -248,6 +248,45 @@ export const PublicTagRedirectPage: React.FC = () => {
   const primaryColor = destination?.configuration?.primary_color || '#2563eb'
   const cfg = (destination?.configuration || {}) as DestinationConfig
   const biz = (business || {}) as Business
+  const pageTemplate = cfg.page_template || 'classic'
+  const templateStyles = {
+    classic: {
+      page: 'bg-slate-100',
+      card: 'bg-white border-slate-200/80 rounded-3xl',
+      body: 'text-center',
+      title: 'text-slate-900',
+      location: 'text-slate-500',
+      welcome: 'bg-slate-50 border-slate-200/80',
+      welcomeTitle: 'text-slate-800',
+      welcomeText: 'text-slate-600',
+      logo: 'bg-white border-white rounded-3xl',
+      footer: 'text-slate-500',
+    },
+    modern: {
+      page: 'bg-slate-950 bg-[radial-gradient(circle_at_top,#172554_0%,#020617_52%)]',
+      card: 'bg-slate-900 border-slate-700 rounded-[2rem]',
+      body: 'text-center',
+      title: 'text-white',
+      location: 'text-slate-400',
+      welcome: 'bg-slate-800/80 border-slate-700',
+      welcomeTitle: 'text-white',
+      welcomeText: 'text-slate-300',
+      logo: 'bg-slate-900 border-slate-700 rounded-3xl',
+      footer: 'text-slate-400',
+    },
+    elegant: {
+      page: 'bg-[#f6f0e6] bg-[radial-gradient(circle_at_top,#fffaf0_0%,#ede2d0_68%)]',
+      card: 'bg-[#fffdf8] border-amber-200/80 rounded-[2.5rem]',
+      body: 'text-center font-serif',
+      title: 'text-stone-900 tracking-wide',
+      location: 'text-stone-500',
+      welcome: 'bg-amber-50/70 border-amber-200/80',
+      welcomeTitle: 'text-stone-900',
+      welcomeText: 'text-stone-600',
+      logo: 'bg-[#fffdf8] border-amber-100 rounded-full',
+      footer: 'text-stone-500',
+    },
+  }[pageTemplate]
 
   // Google Reviews
   const googleUrl =
@@ -302,12 +341,19 @@ export const PublicTagRedirectPage: React.FC = () => {
   const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl].filter(Boolean).length > 1
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col justify-between py-6 px-4 sm:px-6">
+    <div className={`min-h-screen flex flex-col justify-between py-6 px-4 sm:px-6 ${templateStyles.page}`}>
       <div className="max-w-md w-full mx-auto">
-        <div className="bg-white rounded-3xl shadow-xl overflow-hidden border border-slate-200/80">
+        <div className={`shadow-2xl overflow-hidden border ${templateStyles.card}`}>
           <div
-            className="h-32 w-full relative flex items-center justify-center overflow-hidden"
-            style={{ backgroundColor: primaryColor }}
+            className={`w-full relative flex items-center justify-center overflow-hidden ${pageTemplate === 'modern' ? 'h-40' : 'h-32'}`}
+            style={{
+              background:
+                pageTemplate === 'modern'
+                  ? `linear-gradient(135deg, ${primaryColor}, #020617)`
+                  : pageTemplate === 'elegant'
+                    ? `linear-gradient(135deg, ${primaryColor}, #78350f)`
+                    : primaryColor,
+            }}
           >
             {business?.cover_url && (
               <img
@@ -332,9 +378,9 @@ export const PublicTagRedirectPage: React.FC = () => {
             </div>
           </div>
 
-          <div className="px-6 pb-8 pt-0 relative text-center">
+          <div className={`px-6 pb-8 pt-0 relative ${templateStyles.body}`}>
             <div className="relative -mt-14 mb-4 flex justify-center">
-              <div className="p-1.5 rounded-3xl bg-white shadow-xl border-2 border-white inline-block">
+              <div className={`p-1.5 shadow-xl border-2 inline-block ${templateStyles.logo}`}>
                 <BusinessAvatar
                   src={destination?.configuration?.custom_logo || business?.logo_url}
                   name={business?.name || tag?.name}
@@ -343,18 +389,18 @@ export const PublicTagRedirectPage: React.FC = () => {
               </div>
             </div>
 
-            <h1 className="text-xl font-black text-slate-900 mb-1">
+            <h1 className={`text-xl font-black mb-1 ${templateStyles.title}`}>
               {business?.name || tag?.name}
             </h1>
             {business?.city && (
-              <p className="text-xs text-slate-500 font-medium mb-4">
+              <p className={`text-xs font-medium mb-4 ${templateStyles.location}`}>
                 {business.address}, {business.city} - {business.state}
               </p>
             )}
 
             {/* Card de Boas-vindas */}
-            <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-4 mb-6">
-              <h2 className="text-sm font-bold text-slate-800 mb-1">
+            <div className={`border rounded-2xl p-4 mb-6 ${templateStyles.welcome}`}>
+              <h2 className={`text-sm font-bold mb-1 ${templateStyles.welcomeTitle}`}>
                 {destination?.configuration?.welcome_title ||
                   (googleEnabled && googleUrl
                     ? 'Como foi sua experiência conosco?'
@@ -366,7 +412,7 @@ export const PublicTagRedirectPage: React.FC = () => {
                     ? 'Cardápio & Informações'
                     : 'Bem-vindo ao nosso espaço digital')}
               </h2>
-              <p className="text-xs text-slate-600 leading-relaxed mb-4">
+              <p className={`text-xs leading-relaxed mb-4 ${templateStyles.welcomeText}`}>
                 {destination?.configuration?.welcome_message ||
                   (googleEnabled && googleUrl
                     ? 'Sua opinião é fundamental para nossa equipe e leva menos de 1 minuto no Google!'
@@ -435,7 +481,7 @@ export const PublicTagRedirectPage: React.FC = () => {
         </div>
 
         <div className="mt-4 text-center">
-          <div className="inline-flex items-center gap-2 text-[11px] text-slate-500">
+          <div className={`inline-flex items-center gap-2 text-[11px] ${templateStyles.footer}`}>
             <img src="/logo.png" alt="AvaliaTag" className="h-5 w-auto object-contain" />
             <span>Tag NFC Gerenciada por <strong>AvaliaTag</strong></span>
           </div>
@@ -444,3 +490,4 @@ export const PublicTagRedirectPage: React.FC = () => {
     </div>
   )
 }
+
