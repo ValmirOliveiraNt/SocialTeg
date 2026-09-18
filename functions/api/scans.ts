@@ -158,6 +158,12 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       : 'scan-' + crypto.randomUUID()
     const eventType =
       data.event_type === 'destination_open' ? 'destination_open' : 'page_view'
+    const parentEventId =
+      eventType === 'destination_open' &&
+      typeof data.parent_event_id === 'string' &&
+      /^[0-9a-f-]{36}$/i.test(data.parent_event_id)
+        ? data.parent_event_id
+        : null
     const clickedDestination = [
       'google_review',
       'instagram',
@@ -169,6 +175,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const meta = {
       version: data.telemetry_version === 2 ? 2 : 1,
       event: eventType,
+      parent_event_id: parentEventId,
       reading_method: readingMethod,
       timezone: text(cf.timezone || data.timezone),
       screen: text(data.screen, 40),

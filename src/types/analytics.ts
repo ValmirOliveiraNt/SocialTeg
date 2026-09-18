@@ -42,6 +42,7 @@ export interface Analytics {
     region: string
     method: string
     destination_type: string
+    opened_destination: string | null
   }[]
   inventory: {
     tags: number

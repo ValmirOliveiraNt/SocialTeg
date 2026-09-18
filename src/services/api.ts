@@ -183,6 +183,7 @@ export const api = {
       metadata?: {
         event_id?: string
         event_type?: 'page_view' | 'destination_open'
+        parent_event_id?: string
         reading_method?: string
         local_time?: string
         local_date?: string

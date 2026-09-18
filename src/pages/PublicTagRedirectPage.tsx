@@ -133,6 +133,7 @@ export const PublicTagRedirectPage: React.FC = () => {
               api.scans.record(tag.id, destination.type, {
                 event_id: crypto.randomUUID(),
                 event_type: 'destination_open',
+                parent_event_id: scanEvent.current.id,
                 reading_method: 'unknown',
                 referrer: 'direct_redirect',
               })
@@ -482,6 +483,7 @@ export const PublicTagRedirectPage: React.FC = () => {
                   api.scans.record(tag.id, destinationType, {
                     event_id: crypto.randomUUID(),
                     event_type: 'destination_open',
+                    parent_event_id: scanEvent.current.id,
                     reading_method: 'unknown',
                     referrer: 'public_page_action',
                   })
