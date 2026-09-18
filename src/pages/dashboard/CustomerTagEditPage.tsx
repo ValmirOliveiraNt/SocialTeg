@@ -69,6 +69,7 @@ export const CustomerTagEditPage: React.FC = () => {
 
   // Configurações de Apresentação
   const [directRedirect, setDirectRedirect] = useState(false)
+  const [pageTemplate, setPageTemplate] = useState<'classic' | 'modern' | 'elegant'>('classic')
   const [welcomeTitle, setWelcomeTitle] = useState('')
   const [welcomeMessage, setWelcomeMessage] = useState('')
   const [customLogo, setCustomLogo] = useState('')
@@ -170,6 +171,7 @@ export const CustomerTagEditPage: React.FC = () => {
         )
 
         setDirectRedirect(cfg.direct_redirect ?? false)
+        setPageTemplate(cfg.page_template || 'classic')
         setWelcomeTitle(cfg.welcome_title || '')
         setWelcomeMessage(cfg.welcome_message || '')
         setCustomLogo(cfg.custom_logo || currentBiz?.logo_url || '')
@@ -273,6 +275,7 @@ export const CustomerTagEditPage: React.FC = () => {
           menu_enabled: menuEnabled,
           menu_url: cleanMenu,
           direct_redirect: directRedirect,
+          page_template: pageTemplate,
           welcome_title: welcomeTitle,
           welcome_message: welcomeMessage,
           custom_logo: customLogo.trim(),
@@ -924,6 +927,42 @@ export const CustomerTagEditPage: React.FC = () => {
 
           {!directRedirect && (
             <div className="space-y-4 p-4 bg-slate-50 rounded-2xl border border-slate-200">
+              <div>
+                <div className="mb-2 flex items-center justify-between gap-3">
+                  <label className="block text-xs font-semibold text-slate-700 uppercase">
+                    Modelo da página exibida ao cliente
+                  </label>
+                  <span className="text-[10px] text-slate-400">Escolha um estilo</span>
+                </div>
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                  {([
+                    { id: 'classic', name: 'Clássico', description: 'Claro, familiar e objetivo.', preview: 'bg-white border-slate-200', accent: 'bg-blue-600' },
+                    { id: 'modern', name: 'Moderno', description: 'Escuro, marcante e tecnológico.', preview: 'bg-slate-950 border-slate-800', accent: 'bg-gradient-to-r from-cyan-400 to-blue-500' },
+                    { id: 'elegant', name: 'Elegante', description: 'Sofisticado, leve e acolhedor.', preview: 'bg-amber-50 border-amber-200', accent: 'bg-amber-700' },
+                  ] as const).map((template) => (
+                    <button
+                      key={template.id}
+                      type="button"
+                      onClick={() => setPageTemplate(template.id)}
+                      className={`rounded-2xl border-2 p-3 text-left transition cursor-pointer ${
+                        pageTemplate === template.id
+                          ? 'border-blue-600 bg-blue-50 shadow-sm'
+                          : 'border-slate-200 bg-white hover:border-slate-300'
+                      }`}
+                    >
+                      <div className={`mb-3 h-20 overflow-hidden rounded-xl border p-2 ${template.preview}`}>
+                        <div className={`h-5 rounded-md ${template.accent}`} />
+                        <div className="mx-auto -mt-1 h-7 w-7 rounded-full border-2 border-white bg-slate-300" />
+                        <div className="mx-auto mt-2 h-1.5 w-16 rounded-full bg-slate-300" />
+                        <div className="mx-auto mt-1 h-1 w-10 rounded-full bg-slate-200" />
+                      </div>
+                      <div className="text-xs font-bold text-slate-900">{template.name}</div>
+                      <p className="mt-1 text-[10px] leading-4 text-slate-500">{template.description}</p>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
