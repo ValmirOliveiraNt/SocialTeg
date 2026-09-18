@@ -57,6 +57,7 @@ export type DestinationType =
 
 export interface DestinationConfig {
   direct_redirect: boolean
+  page_template?: 'classic' | 'modern' | 'elegant'
   welcome_title?: string
   welcome_message?: string
   primary_color?: string
@@ -219,3 +220,4 @@ export interface AuditLog {
   ip_address?: string
   created_at: string
 }
+
