@@ -16,8 +16,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
     (url.pathname === '/api/scans' && context.request.method === 'POST') ||
     (url.pathname === '/api/tags' &&
       context.request.method === 'GET' &&
-      url.searchParams.has('public_id') &&
-      !url.searchParams.has('include_serial')) ||
+      url.searchParams.has('public_id')) ||
     (url.pathname === '/api/destinations' &&
       context.request.method === 'GET' &&
       url.searchParams.has('tag_id')) ||

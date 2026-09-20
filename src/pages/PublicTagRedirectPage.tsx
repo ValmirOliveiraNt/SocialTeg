@@ -12,11 +12,9 @@ import { NFCTag, TagDestination, Business, DestinationConfig } from '../types'
 import { api } from '../services/api'
 import { ExternalActions } from '../components/ExternalActions'
 import { BusinessAvatar } from '../components/BusinessAvatar'
-import { useAuth } from '../context/AuthContext'
 
 export const PublicTagRedirectPage: React.FC = () => {
   const { publicId } = useParams<{ publicId: string }>()
-  const { currentUser } = useAuth()
   const scanEvent = useRef({ publicId, id: crypto.randomUUID() })
   const [tag, setTag] = useState<NFCTag | null>(null)
   const [destination, setDestination] = useState<TagDestination | null>(null)
@@ -27,7 +25,6 @@ export const PublicTagRedirectPage: React.FC = () => {
   >('not_found')
   const [countdown, setCountdown] = useState(2)
   const [selectedRating, setSelectedRating] = useState<number>(5)
-  const [registeredSerial, setRegisteredSerial] = useState<string | null>(null)
 
   useEffect(() => {
     async function loadTagData() {
@@ -49,14 +46,6 @@ export const PublicTagRedirectPage: React.FC = () => {
       }
 
       setTag(foundTag)
-      if (currentUser) {
-        try {
-          const identified = await api.tags.identifyByPublicId(publicId)
-          setRegisteredSerial(identified?.serial_number || null)
-        } catch {
-          setRegisteredSerial(null)
-        }
-      }
 
       if (foundTag.status === 'blocked' || foundTag.status === 'lost') {
         setStatus('blocked')
@@ -134,7 +123,7 @@ export const PublicTagRedirectPage: React.FC = () => {
     }
 
     loadTagData()
-  }, [publicId, currentUser])
+  }, [publicId])
 
   useEffect(() => {
     if (status === 'found_active' && destination?.configuration?.direct_redirect) {
@@ -203,11 +192,9 @@ export const PublicTagRedirectPage: React.FC = () => {
         <p className="text-sm text-slate-600 max-w-md mb-2 leading-relaxed">
           Esta Tag física já foi entregue e precisa ser vinculada a um estabelecimento no painel de controle.
         </p>
-        {registeredSerial && (
-          <p className="text-xs font-mono text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 mb-6">
-            Tag identificada · Serial: {registeredSerial}
-          </p>
-        )}
+        <p className="text-xs font-mono text-slate-500 bg-white px-3 py-1.5 rounded-lg border border-slate-200 mb-6">
+          Serial: {tag?.serial_number}
+        </p>
         <div className="flex flex-col sm:flex-row gap-3">
           <Link
             to="/login"
@@ -414,12 +401,6 @@ export const PublicTagRedirectPage: React.FC = () => {
           </div>
 
           <div className={`px-6 pb-8 pt-0 relative ${templateStyles.body}`}>
-            {registeredSerial && (
-              <div className="mt-4 rounded-xl border border-blue-200 bg-blue-50 px-3 py-2 text-left text-[11px] text-blue-900">
-                <span className="font-semibold">Tag identificada no seu painel:</span>{' '}
-                <span className="font-mono font-bold">{registeredSerial}</span>
-              </div>
-            )}
             <div className="relative -mt-14 mb-4 flex justify-center">
               <div className={`p-1.5 shadow-xl border-2 inline-block ${templateStyles.logo}`}>
                 <BusinessAvatar

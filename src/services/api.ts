@@ -123,9 +123,6 @@ export const api = {
     async getByPublicId(publicId: string): Promise<NFCTag | null> {
       return request<NFCTag | null>(`/api/tags?public_id=${encodeURIComponent(publicId)}`)
     },
-    async identifyByPublicId(publicId: string): Promise<NFCTag | null> {
-      return request<NFCTag | null>(`/api/tags?public_id=${encodeURIComponent(publicId)}&include_serial=1`)
-    },
     async getBySerial(serial: string): Promise<NFCTag | null> {
       return request<NFCTag | null>(`/api/tags?serial=${encodeURIComponent(serial)}`)
     },
