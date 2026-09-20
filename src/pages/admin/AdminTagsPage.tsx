@@ -20,6 +20,7 @@ import { api } from '../../services/api'
 import { QRCodeModal } from '../../components/QRCodeModal'
 import { NFCWriterModal } from '../../components/NFCWriterModal'
 import { BatchNFCWriterModal } from '../../components/BatchNFCWriterModal'
+import { NFCInventoryReaderModal } from '../../components/NFCInventoryReaderModal'
 import { SavingIndicator } from '../../components/SavingIndicator'
 import { getPublicTagUrl } from '../../utils/url'
 
@@ -32,6 +33,7 @@ export const AdminTagsPage: React.FC = () => {
   const [copiedId, setCopiedId] = useState<string | null>(null)
   const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set())
   const [nfcBatchQueue, setNfcBatchQueue] = useState<NFCTag[]>([])
+  const [inventoryReaderOpen, setInventoryReaderOpen] = useState(false)
 
   const [tags, setTags] = useState<NFCTag[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -278,6 +280,13 @@ export const AdminTagsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setInventoryReaderOpen(true)}
+            className="px-3.5 py-2.5 bg-purple-50 hover:bg-purple-100 text-purple-800 text-xs font-bold rounded-xl border border-purple-200 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
+          >
+            <Radio className="w-4 h-4" />
+            <span>Ler tag no estoque</span>
+          </button>
           <button
             onClick={handleExportCSV}
             className="px-3.5 py-2.5 bg-white hover:bg-slate-50 text-slate-700 text-xs font-bold rounded-xl border border-slate-300 shadow-2xs transition flex items-center gap-1.5 cursor-pointer"
@@ -728,6 +737,7 @@ export const AdminTagsPage: React.FC = () => {
       {nfcBatchQueue.length > 0 && (
         <BatchNFCWriterModal tags={nfcBatchQueue} onClose={() => setNfcBatchQueue([])} />
       )}
+      {inventoryReaderOpen && <NFCInventoryReaderModal onClose={() => setInventoryReaderOpen(false)} />}
     </div>
   )
 }
