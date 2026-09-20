@@ -1,6 +1,12 @@
 interface Env {
   DB: D1Database
 }
+import { requireAdmin, requireSession } from '../_lib/session'
+
+function shippingFor(zip: unknown): number {
+  const clean = typeof zip === 'string' ? zip.replace(/\D/g, '') : ''
+  return clean.length >= 8 && (clean.startsWith('0') || clean.startsWith('1')) ? 0 : 19.9
+}
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
@@ -8,9 +14,12 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const orderId = url.searchParams.get('id')
 
   try {
+    const user = await requireSession(context.request, context.env.DB)
+    const admin = user.role === 'admin'
     if (orderId) {
       const order: any = await context.env.DB.prepare('SELECT * FROM orders WHERE id = ?').bind(orderId).first()
       if (!order) return Response.json(null)
+      if (!admin && order.user_id !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       const { results: items } = await context.env.DB.prepare('SELECT * FROM order_items WHERE order_id = ?').bind(orderId).all()
       order.items = items
       order.shipping_address = JSON.parse(order.shipping_address || '{}')
@@ -20,9 +29,10 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
     let ordersQuery = 'SELECT * FROM orders ORDER BY created_at DESC'
     let stmt = context.env.DB.prepare(ordersQuery)
-    if (userId) {
+    if (!admin || userId) {
+      if (!admin && userId && userId !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       ordersQuery = 'SELECT * FROM orders WHERE user_id = ? ORDER BY created_at DESC'
-      stmt = context.env.DB.prepare(ordersQuery).bind(userId)
+      stmt = context.env.DB.prepare(ordersQuery).bind(admin ? userId : user.id)
     }
 
     const { results: orders } = await stmt.all()
@@ -42,37 +52,38 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const data: any = await context.request.json()
-    const orderId = data.id || ('ORD-' + Date.now().toString().slice(-6))
-
-    const assignedSerials: string[] = []
-    const totalItems = data.items?.reduce((acc: number, it: any) => acc + (it.quantity || 1), 0) || 1
-    for (let i = 0; i < totalItems; i++) {
-      const serial = `TAG-${Math.floor(1000 + Math.random() * 9000)}-BR`
-      assignedSerials.push(serial)
+    const user = await requireSession(context.request, context.env.DB)
+    if (!Array.isArray(data.items) || data.items.length < 1 || data.items.length > 50)
+      return Response.json({ error: 'Itens do pedido inválidos' }, { status: 400 })
+    const orderId = `ORD-${crypto.randomUUID()}`
+    const method = ['pix', 'credit_card', 'boleto'].includes(data.payment_method) ? data.payment_method : 'pix'
+    const address = data.shipping_address && typeof data.shipping_address === 'object' ? data.shipping_address : {}
+    const orderItems: Array<{ product: any; quantity: number; total: number }> = []
+    let subtotal = 0
+    for (const item of data.items) {
+      const quantity = Number(item?.quantity)
+      if (!Number.isInteger(quantity) || quantity < 1 || quantity > 100 || typeof item?.product_id !== 'string')
+        return Response.json({ error: 'Item do pedido inválido' }, { status: 400 })
+      const product = await context.env.DB.prepare("SELECT id, name, price, stock FROM products WHERE id = ? AND status = 'active'").bind(item.product_id).first<any>()
+      if (!product || Number(product.stock) < quantity) return Response.json({ error: 'Produto indisponível' }, { status: 400 })
+      const total = Number(product.price) * quantity
+      subtotal += total
+      orderItems.push({ product, quantity, total })
     }
+    const shipping = shippingFor(address.zip)
+    const discount = method === 'pix' ? subtotal * 0.05 : 0
+    const total = Math.max(0, subtotal - discount + shipping)
 
     await context.env.DB.prepare(`
       INSERT INTO orders (id, user_id, user_name, user_email, status, subtotal, discount, shipping, total, payment_status, payment_method, shipping_address, tracking_code, assigned_serials, created_at, updated_at)
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).bind(
       orderId,
-      data.user_id,
-      data.user_name,
-      data.user_email,
-      data.status || 'paid',
-      data.subtotal || 0,
-      data.discount || 0,
-      data.shipping || 0,
-      data.total || 0,
-      data.payment_status || 'approved',
-      data.payment_method || 'pix',
-      JSON.stringify(data.shipping_address || {}),
-      'BR' + Math.floor(100000000 + Math.random() * 900000000) + 'SP',
-      JSON.stringify(assignedSerials)
+      user.id, user.name, user.email, 'pending', subtotal, discount, shipping, total,
+      'pending', method, JSON.stringify(address), null, '[]'
     ).run()
 
-    if (Array.isArray(data.items)) {
-      for (const it of data.items) {
+    for (const item of orderItems) {
         const itemId = 'item-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
         await context.env.DB.prepare(`
           INSERT INTO order_items (id, order_id, product_id, product_name, quantity, unit_price, total)
@@ -80,25 +91,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         `).bind(
           itemId,
           orderId,
-          it.product_id,
-          it.product_name,
-          it.quantity,
-          it.unit_price,
-          it.total
+          item.product.id, item.product.name, item.quantity, item.product.price, item.total
         ).run()
-      }
     }
-
-    for (const serial of assignedSerials) {
-      const tagId = 'tag-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
-      const publicId = 'tag-' + serial.toLowerCase().replace(/[^a-z0-9]/g, '')
-      await context.env.DB.prepare(`
-        INSERT INTO nfc_tags (id, public_id, serial_number, status, owner_id, name, created_at, updated_at)
-        VALUES (?, ?, ?, 'pending_activation', ?, ?, datetime('now'), datetime('now'))
-      `).bind(tagId, publicId, serial, data.user_id, `Tag NFC #${serial}`).run()
-    }
-
-    return Response.json({ success: true, orderId, assignedSerials }, { status: 201 })
+    return Response.json({ success: true, orderId, assignedSerials: [] }, { status: 201 })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 400 })
   }
@@ -108,6 +104,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
     const data: any = await context.request.json()
     if (!data.id) return Response.json({ error: 'ID do pedido obrigatório' }, { status: 400 })
+    await requireAdmin(context.request, context.env.DB)
 
     await context.env.DB.prepare(`
       UPDATE orders

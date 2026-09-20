@@ -1,6 +1,17 @@
 interface Env {
   DB: D1Database
 }
+import { requireAdmin, requireSession } from '../_lib/session'
+
+const publicFields = 'id, public_id, status, name, location, business_id'
+
+async function requireOwnedTag(request: Request, db: D1Database, id: string) {
+  const user = await requireSession(request, db)
+  const tag = await db.prepare('SELECT * FROM nfc_tags WHERE id = ?').bind(id).first<{ owner_id: string | null }>()
+  if (!tag) throw new Response('Tag não encontrada', { status: 404 })
+  if (user.role !== 'admin' && tag.owner_id !== user.id) throw new Response('Acesso restrito', { status: 403 })
+  return { user, tag }
+}
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
@@ -11,26 +22,34 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
   try {
     if (tagId) {
+      await requireOwnedTag(context.request, context.env.DB, tagId)
       const tag = await context.env.DB.prepare('SELECT * FROM nfc_tags WHERE id = ?').bind(tagId).first()
       return Response.json(tag || null)
     }
 
     if (publicId) {
-      const tag = await context.env.DB.prepare('SELECT * FROM nfc_tags WHERE lower(public_id) = lower(?)').bind(publicId.trim()).first()
+      const tag = await context.env.DB.prepare(`SELECT ${publicFields} FROM nfc_tags WHERE lower(public_id) = lower(?)`).bind(publicId.trim()).first()
       return Response.json(tag || null)
     }
 
     if (serial) {
-      const tag = await context.env.DB.prepare('SELECT * FROM nfc_tags WHERE lower(replace(serial_number, " ", "")) = lower(replace(?, " ", ""))').bind(serial.trim()).first()
+      const user = await requireSession(context.request, context.env.DB)
+      const tag = await context.env.DB.prepare('SELECT id, public_id, serial_number, status, name, location, owner_id, business_id FROM nfc_tags WHERE lower(replace(serial_number, " ", "")) = lower(replace(?, " ", ""))').bind(serial.trim()).first<{ owner_id: string | null }>()
+      if (tag && user.role !== 'admin' && tag.owner_id && tag.owner_id !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       return Response.json(tag || null)
     }
 
+    const user = await requireSession(context.request, context.env.DB)
     if (ownerId) {
+      if (user.role !== 'admin' && ownerId !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       const { results } = await context.env.DB.prepare('SELECT * FROM nfc_tags WHERE owner_id = ? ORDER BY created_at DESC').bind(ownerId).all()
       return Response.json(results)
     }
 
-    const { results } = await context.env.DB.prepare('SELECT * FROM nfc_tags ORDER BY created_at DESC').all()
+    const statement = user.role === 'admin'
+      ? context.env.DB.prepare('SELECT * FROM nfc_tags ORDER BY created_at DESC')
+      : context.env.DB.prepare('SELECT * FROM nfc_tags WHERE owner_id = ? ORDER BY created_at DESC').bind(user.id)
+    const { results } = await statement.all()
     return Response.json(results)
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 500 })
@@ -39,6 +58,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    await requireAdmin(context.request, context.env.DB)
     const body: any = await context.request.json()
     const items = Array.isArray(body) ? body : (body.items ? body.items : [body])
     const statements = []
@@ -78,7 +98,9 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
     const data: any = await context.request.json()
+    const user = await requireSession(context.request, context.env.DB)
     if (Array.isArray(data.ids) && data.ids.length > 0) {
+      if (user.role !== 'admin') return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       const ids = [...new Set(data.ids.filter((id: unknown) => typeof id === 'string'))].slice(0, 200)
       if (!ids.length) return Response.json({ error: 'Nenhuma Tag válida informada' }, { status: 400 })
       const statements = ids.map((id: string, index: number) => {
@@ -98,6 +120,18 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     }
     if (!data.id) {
       return Response.json({ error: 'ID da Tag obrigatório' }, { status: 400 })
+    }
+
+    const existing = await context.env.DB.prepare('SELECT owner_id FROM nfc_tags WHERE id = ?').bind(data.id).first<{ owner_id: string | null }>()
+    if (!existing) return Response.json({ error: 'Tag não encontrada' }, { status: 404 })
+    if (user.role !== 'admin') {
+      if (existing.owner_id && existing.owner_id !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
+      if (data.owner_id !== undefined && data.owner_id !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
+      if (data.business_id) {
+        const business = await context.env.DB.prepare('SELECT id FROM businesses WHERE id = ? AND owner_id = ?').bind(data.business_id, user.id).first()
+        if (!business) return Response.json({ error: 'Estabelecimento inválido' }, { status: 403 })
+      }
+      data.owner_id = user.id
     }
 
     const ownerProvided = Object.prototype.hasOwnProperty.call(data, 'owner_id')
@@ -137,6 +171,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   if (!id) return Response.json({ error: 'ID obrigatório' }, { status: 400 })
 
   try {
+    await requireAdmin(context.request, context.env.DB)
     await context.env.DB.prepare('DELETE FROM nfc_tags WHERE id = ?').bind(id).run()
     return Response.json({ success: true })
   } catch (err: any) {
