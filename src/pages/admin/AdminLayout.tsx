@@ -31,7 +31,7 @@ export const AdminLayout: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-[#F4F7FB] flex flex-col selection:bg-blue-600 selection:text-white">
+    <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F7FB] flex flex-col selection:bg-blue-600 selection:text-white">
       <div className="bg-[#071A33] text-blue-100 text-xs py-1.5 px-4 flex items-center justify-between border-b border-blue-950">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
@@ -45,14 +45,14 @@ export const AdminLayout: React.FC = () => {
         </div>
       </div>
 
-      <div className="flex-1 flex">
-        <aside className="hidden lg:flex w-64 bg-[#0B1F3B] text-slate-300 flex-col justify-between p-4 sticky top-0 h-screen border-r border-blue-950">
-          <div className="space-y-6">
+      <div className="flex-1 flex min-h-0">
+        <aside className="hidden lg:flex w-64 bg-[#0B1F3B] text-slate-300 flex-col p-4 h-full min-h-0 overflow-hidden border-r border-blue-950">
+          <div className="flex flex-1 min-h-0 flex-col gap-6">
             <Link to="/admin" className="flex items-center gap-2 px-2 hover:opacity-90 transition">
               <BrandLogo size="md" theme="dark" />
             </Link>
 
-            <nav className="space-y-1">
+            <nav className="flex-1 min-h-0 overflow-y-auto space-y-1 pr-1">
               {navItems.map((item) => {
                 const Icon = item.icon
                 const isActive =
@@ -100,7 +100,7 @@ export const AdminLayout: React.FC = () => {
           </div>
         </aside>
 
-        <div className="flex-1 flex flex-col min-w-0">
+        <div className="flex-1 flex flex-col min-w-0 min-h-0 overflow-y-auto">
           <header className="lg:hidden bg-[#0B1F3B] text-white p-4 flex items-center justify-between border-b border-blue-950">
             <Link to="/admin">
               <BrandLogo size="sm" theme="dark" />
