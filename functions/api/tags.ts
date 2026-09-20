@@ -18,6 +18,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const ownerId = url.searchParams.get('owner_id')
   const tagId = url.searchParams.get('id')
   const publicId = url.searchParams.get('public_id')
+  const includeSerial = url.searchParams.get('include_serial') === '1'
   const serial = url.searchParams.get('serial')
 
   try {
@@ -28,6 +29,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     if (publicId) {
+      if (includeSerial) {
+        const tag = await context.env.DB.prepare('SELECT * FROM nfc_tags WHERE lower(public_id) = lower(?)').bind(publicId.trim()).first<{ id: string; owner_id: string | null }>()
+        if (!tag) return Response.json(null)
+        const user = await requireSession(context.request, context.env.DB)
+        if (user.role !== 'admin' && tag.owner_id !== user.id) return Response.json({ error: 'Acesso restrito' }, { status: 403 })
+        return Response.json(tag)
+      }
       const tag = await context.env.DB.prepare(`SELECT ${publicFields} FROM nfc_tags WHERE lower(public_id) = lower(?)`).bind(publicId.trim()).first()
       return Response.json(tag || null)
     }
