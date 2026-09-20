@@ -33,6 +33,7 @@ export const CheckoutPage: React.FC = () => {
   const [userName, setUserName] = useState(currentUser?.name || '')
   const [userEmail, setUserEmail] = useState(currentUser?.email || '')
   const [userPhone, setUserPhone] = useState(currentUser?.phone || '')
+  const [password, setPassword] = useState('')
 
   const [address, setAddress] = useState<ShippingAddress>({
     street: '',
@@ -61,17 +62,17 @@ export const CheckoutPage: React.FC = () => {
 
     if (!currentUser) {
       if (authMode === 'register') {
-        if (!userName.trim() || !userEmail.trim()) {
-          setError('Informe seu nome e e-mail para prosseguir.')
+        if (!userName.trim() || !userEmail.trim() || !password) {
+          setError('Informe nome, e-mail e senha para prosseguir.')
           return
         }
-        const user = await register(userName.trim(), userEmail.trim(), userPhone.trim())
+        const user = await register(userName.trim(), userEmail.trim(), userPhone.trim(), password)
         if (!user) {
           setError('Erro ao cadastrar. E-mail já cadastrado.')
           return
         }
       } else {
-        const ok = await login(userEmail.trim())
+        const ok = await login(userEmail.trim(), password)
         if (!ok) {
           setError('Usuário não encontrado com este e-mail.')
           return
@@ -261,6 +262,21 @@ export const CheckoutPage: React.FC = () => {
                         value={userEmail}
                         onChange={(e) => setUserEmail(e.target.value)}
                         placeholder="contato@empresa.com.br"
+                        className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-semibold text-slate-700 mb-1.5 uppercase">
+                        Senha
+                      </label>
+                      <input
+                        type="password"
+                        required
+                        minLength={12}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        placeholder={authMode === 'register' ? '12+ caracteres, maiúscula, número e símbolo' : 'Sua senha'}
                         className="w-full px-4 py-2.5 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
