@@ -47,7 +47,14 @@ async function hashPassword(password: string, saltHex?: string): Promise<{ hash:
 
 async function verifyPassword(password: string, storedHash: string, storedSalt: string): Promise<boolean> {
   const { hash } = await hashPassword(password, storedSalt)
-  return hash === storedHash
+  if (hash.length !== storedHash.length) return false
+  let mismatch = 0
+  for (let i = 0; i < hash.length; i++) mismatch |= hash.charCodeAt(i) ^ storedHash.charCodeAt(i)
+  return mismatch === 0
+}
+
+function validPassword(password: string): boolean {
+  return password.length >= 12 && /[a-z]/.test(password) && /[A-Z]/.test(password) && /\d/.test(password) && /[^A-Za-z0-9]/.test(password)
 }
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
@@ -115,8 +122,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         return Response.json({ error: 'Nome e e-mail são obrigatórios' }, { status: 400 })
       }
 
-      if (password.length < 6) {
-        return Response.json({ error: 'A senha deve ter no mínimo 6 caracteres' }, { status: 400 })
+      if (!validPassword(password)) {
+        return Response.json({ error: 'Use uma senha de pelo menos 12 caracteres, com maiúscula, minúscula, número e símbolo.' }, { status: 400 })
       }
 
       const existing = await context.env.DB.prepare('SELECT id FROM users WHERE lower(email) = ?').bind(email).first()
@@ -163,7 +170,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       `).bind(email).first()
 
       if (!userRecord) {
-        return Response.json({ error: 'Usuário não encontrado' }, { status: 404 })
+        return Response.json({ error: 'Credenciais inválidas' }, { status: 401 })
       }
 
       if (userRecord.status === 'blocked') {
@@ -176,11 +183,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
         if (!isValid) {
           return Response.json({ error: 'Senha incorreta' }, { status: 401 })
         }
-      } else if (password) {
-        const { hash, salt } = await hashPassword(password)
-        await context.env.DB.prepare(`
-          UPDATE users SET password_hash = ? WHERE id = ?
-        `).bind(`${salt}:${hash}`, userRecord.id).run()
+      } else {
+        // Password creation must never happen as part of a login: otherwise any
+        // visitor could take over an imported account that has no password yet.
+        return Response.json({ error: 'Conta sem senha configurada. Solicite a redefinição de senha ao suporte.' }, { status: 403 })
       }
 
       const token = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))

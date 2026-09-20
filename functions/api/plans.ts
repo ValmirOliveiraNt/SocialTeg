@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database
 }
+import { requireAdmin } from '../_lib/session'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
@@ -20,6 +21,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
+    await requireAdmin(context.request, context.env.DB)
     const data: any = await context.request.json()
     if (!data.id) return Response.json({ error: 'ID do plano obrigatório' }, { status: 400 })
 

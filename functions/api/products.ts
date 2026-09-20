@@ -1,6 +1,7 @@
 interface Env {
   DB: D1Database
 }
+import { requireAdmin } from '../_lib/session'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
@@ -17,6 +18,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    await requireAdmin(context.request, context.env.DB)
     const data: any = await context.request.json()
     const id = data.id || 'prod-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
 
@@ -42,6 +44,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
+    await requireAdmin(context.request, context.env.DB)
     const data: any = await context.request.json()
     if (!data.id) return Response.json({ error: 'ID do produto obrigatório' }, { status: 400 })
 
@@ -75,6 +78,7 @@ export const onRequestDelete: PagesFunction<Env> = async (context) => {
   if (!id) return Response.json({ error: 'ID do produto obrigatório' }, { status: 400 })
 
   try {
+    await requireAdmin(context.request, context.env.DB)
     await context.env.DB.prepare('DELETE FROM products WHERE id = ?').bind(id).run()
     return Response.json({ success: true })
   } catch (err: any) {

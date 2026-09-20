@@ -1,9 +1,11 @@
 interface Env {
   DB: D1Database
 }
+import { requireAdmin } from '../_lib/session'
 
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   try {
+    await requireAdmin(context.request, context.env.DB)
     const { results } = await context.env.DB.prepare('SELECT * FROM audit_logs ORDER BY created_at DESC LIMIT 500').all()
     return Response.json(results)
   } catch (err: any) {
@@ -13,6 +15,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
 
 export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
+    const user = await requireAdmin(context.request, context.env.DB)
     const data: any = await context.request.json()
     const id = 'log-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
 
@@ -21,7 +24,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       VALUES (?, ?, ?, ?, ?, ?, ?, ?, datetime('now'))
     `).bind(
       id,
-      data.user_id || null,
+      user.id,
       data.user_email || null,
       data.action,
       data.entity_type,

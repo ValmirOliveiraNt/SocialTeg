@@ -9,7 +9,7 @@ interface AuthContextType {
   isCustomer: boolean
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>
   loginAs: (role: UserRole) => void
-  register: (name: string, email: string, phone: string, password?: string) => Promise<{ user: User | null; error?: string }>
+  register: (name: string, email: string, phone: string, password: string) => Promise<{ user: User | null; error?: string }>
   logout: () => Promise<void>
   updateProfile: (data: Partial<User>) => void
   refreshUser: () => void
@@ -75,7 +75,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     name: string,
     email: string,
     phone: string,
-    password = 'Password123!'
+    password: string
   ): Promise<{ user: User | null; error?: string }> => {
     try {
       const data = await api.auth.register(name, email, phone, password)

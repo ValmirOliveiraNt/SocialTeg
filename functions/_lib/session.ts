@@ -17,6 +17,12 @@ export async function requireSession(request: Request, db: D1Database) {
   return user
 }
 
+export async function requireAdmin(request: Request, db: D1Database) {
+  const user = await requireSession(request, db)
+  if (user.role !== 'admin') throw new Response('Acesso restrito', { status: 403 })
+  return user
+}
+
 export function apiFailure(error: unknown) {
   if (error instanceof Response) return error
   console.error('Dashboard API error', error)
