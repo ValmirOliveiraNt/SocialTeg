@@ -145,6 +145,12 @@ CREATE TABLE IF NOT EXISTS auth_rate_limits (
   locked_until TEXT
 );
 
+CREATE TABLE IF NOT EXISTS scan_rate_limits (
+  key TEXT PRIMARY KEY,
+  requests INTEGER NOT NULL,
+  window_start TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS subscriptions (
   id TEXT PRIMARY KEY,
   user_id TEXT NOT NULL,

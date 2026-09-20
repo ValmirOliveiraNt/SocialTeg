@@ -4,6 +4,22 @@ interface Env {
   DB: D1Database
 }
 
+async function scanRateLimit(request: Request, db: D1Database, tagId: string): Promise<boolean> {
+  const ip = request.headers.get('cf-connecting-ip') || 'unknown'
+  const source = new TextEncoder().encode(`${ip}:${tagId}`)
+  const digest = await crypto.subtle.digest('SHA-256', source)
+  const key = Array.from(new Uint8Array(digest)).map((b) => b.toString(16).padStart(2, '0')).join('')
+  const now = Date.now()
+  const row = await db.prepare('SELECT requests, window_start FROM scan_rate_limits WHERE key = ?').bind(key).first<{ requests: number; window_start: string }>()
+  if (!row || now - Date.parse(row.window_start) > 60_000) {
+    await db.prepare('INSERT OR REPLACE INTO scan_rate_limits (key, requests, window_start) VALUES (?, 1, ?)').bind(key, new Date(now).toISOString()).run()
+    return true
+  }
+  if (Number(row.requests) >= 60) return false
+  await db.prepare('UPDATE scan_rate_limits SET requests = requests + 1 WHERE key = ?').bind(key).run()
+  return true
+}
+
 export function parseUserAgent(ua: string) {
   const device = !ua
     ? 'Não identificado'
@@ -133,6 +149,8 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         { error: 'Tag ou destino indisponível' },
         { status: 404 },
       )
+    if (!(await scanRateLimit(request, env.DB, tag.id)))
+      return Response.json({ error: 'Muitas leituras. Tente novamente em instantes.' }, { status: 429, headers: { 'Retry-After': '60' } })
     const parsed = parseUserAgent(request.headers.get('user-agent') || '')
     const cf = request.cf || ({} as Record<string, any>)
     const text = (value: unknown, max = 120) =>
