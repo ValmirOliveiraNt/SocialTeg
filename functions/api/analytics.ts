@@ -198,4 +198,3 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
     return apiFailure(error)
   }
 }
-

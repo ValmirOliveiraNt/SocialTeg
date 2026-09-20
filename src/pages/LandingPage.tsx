@@ -333,7 +333,12 @@ export const LandingPage: React.FC = () => {
 
               {/* Coluna Visual: Composição de Produto & Smartphone */}
               <div className="lg:col-span-5 flex justify-center relative">
-                <div className="relative w-full max-w-[420px]">
+                <img
+                  src="/brand/hero-nfc-applications-1600x900.png"
+                  alt="Aplicações AvaliaTag em tag NFC e placa de balcão"
+                  className="relative z-10 w-full max-w-[620px] rounded-[2rem] shadow-2xl shadow-blue-950/10 object-cover"
+                />
+                <div className="hidden relative w-full max-w-[420px]">
                   {/* Glow decorativo de fundo */}
                   <div className="absolute -top-6 -left-6 w-64 h-64 bg-blue-400/25 rounded-full blur-3xl pointer-events-none"></div>
                   <div className="absolute -bottom-6 -right-6 w-64 h-64 bg-indigo-500/20 rounded-full blur-3xl pointer-events-none"></div>
@@ -357,7 +362,7 @@ export const LandingPage: React.FC = () => {
                     <div className="py-6 flex flex-col items-center text-center">
                       <div className="relative mb-4">
                         <img
-                          src="/logo.png"
+                          src="/brand/logo-horizontal-color-600.png"
                           alt="AvaliaTag"
                           className="w-32 h-auto object-contain rounded-2xl shadow-sm border border-slate-100 p-1.5 bg-white"
                         />
@@ -1205,6 +1210,17 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
+            <div className="mb-10 rounded-[2rem] overflow-hidden bg-[#0B1F3B] border border-blue-950 shadow-xl">
+              <div className="grid md:grid-cols-[minmax(0,1fr)_280px] items-stretch">
+                <div className="p-8 sm:p-10 flex flex-col justify-center">
+                  <span className="text-xs font-bold uppercase tracking-[0.2em] text-blue-400">Conexões que geram resultados</span>
+                  <h3 className="text-2xl sm:text-3xl font-black text-white mt-3">Tecnologia NFC que aproxima clientes e fortalece negócios.</h3>
+                  <p className="text-sm text-blue-100/75 mt-3 max-w-2xl">Uma experiência consistente entre o ponto físico, a página aberta pela tag e a gestão dos resultados.</p>
+                </div>
+                <img src="/brand/benefits-panel-dark.png" alt="Mais visibilidade, clientes, confiança e crescimento" className="w-full h-full object-cover object-left" />
+              </div>
+            </div>
+
             {/* Grid de 8 Benefícios Concretos */}
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {[
@@ -1513,6 +1529,12 @@ export const LandingPage: React.FC = () => {
               </p>
             </div>
 
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-5 mb-10">
+              <img src="/brand/nfc-tag-black.png" alt="Tag NFC AvaliaTag preta" className="w-full aspect-square object-cover rounded-3xl border border-slate-700 shadow-xl" />
+              <img src="/brand/nfc-tag-white.png" alt="Tag NFC AvaliaTag branca" className="w-full aspect-square object-cover rounded-3xl border border-slate-700 shadow-xl" />
+              <img src="/brand/nfc-counter-sign.png" alt="Placa de balcão AvaliaTag" className="w-full aspect-square object-cover rounded-3xl border border-slate-700 shadow-xl" />
+            </div>
+
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
               {/* Item 1 */}
               <div className="p-6 rounded-3xl bg-slate-950 border border-slate-800 space-y-4">
@@ -1726,7 +1748,7 @@ export const LandingPage: React.FC = () => {
         {/* =========================================================================
             13. CTA FINAL DE ALTO IMPACTO
            ========================================================================= */}
-        <section id="comecar" className="py-20 lg:py-28 bg-slate-950 text-white text-center relative overflow-hidden">
+        <section id="comecar" className="py-20 lg:py-28 bg-[#0B1F3B] text-white text-center relative overflow-hidden bg-cover bg-center" style={{ backgroundImage: "linear-gradient(90deg, rgba(11,31,59,.97), rgba(11,31,59,.82)), url('/brand/cta-background-1600x600.png')" }}>
           {/* Brilhos de fundo */}
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute -top-10 left-1/4 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>

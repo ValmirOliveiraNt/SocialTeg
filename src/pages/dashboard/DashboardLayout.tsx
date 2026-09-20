@@ -48,8 +48,8 @@ export const DashboardLayout: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col selection:bg-blue-600 selection:text-white">
-      <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4 flex items-center justify-between border-b border-slate-800">
+    <div className="min-h-screen bg-[#F4F7FB] flex flex-col selection:bg-blue-600 selection:text-white">
+      <div className="bg-[#0B1F3B] text-slate-300 text-xs py-1.5 px-4 flex items-center justify-between border-b border-blue-950">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
           <span className="font-medium">Painel do Cliente • AvaliaTag SaaS</span>

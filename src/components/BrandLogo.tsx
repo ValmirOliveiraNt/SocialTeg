@@ -14,46 +14,19 @@ export const BrandLogo: React.FC<BrandLogoProps> = ({
   theme = 'light',
 }) => {
   const heightClasses = {
-    sm: 'h-8',
-    md: 'h-10',
-    lg: 'h-14',
-    xl: 'h-20',
+    sm: 'h-7',
+    md: 'h-9',
+    lg: 'h-12',
+    xl: 'h-16',
   }[size]
 
   return (
-    <div className={`inline-flex items-center gap-2.5 select-none ${className}`}>
-      <div className="relative shrink-0 flex items-center justify-center">
-        <img
-          src="/logo.png"
-          alt="AvaliaTag Logo"
-          className={`${heightClasses} w-auto object-contain rounded-xl`}
-        />
-      </div>
-
-      {showText && (
-        <div className="flex flex-col text-left">
-          <span
-            className={`font-black tracking-tight leading-none ${
-              size === 'sm'
-                ? 'text-base'
-                : size === 'md'
-                ? 'text-xl'
-                : size === 'lg'
-                ? 'text-2xl'
-                : 'text-3xl'
-            } ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}
-          >
-            Avalia<span className="text-blue-600">Tag</span>
-          </span>
-          <span
-            className={`text-[9px] uppercase tracking-widest font-bold mt-0.5 ${
-              theme === 'dark' ? 'text-slate-400' : 'text-slate-500'
-            }`}
-          >
-            NFC Inteligente
-          </span>
-        </div>
-      )}
-    </div>
+    <img
+      src={showText
+        ? theme === 'dark' ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'
+        : theme === 'dark' ? '/brand/symbol-negative-512.png' : '/brand/symbol-color-512.png'}
+      alt="AvaliaTag — Aproximou. Avaliou. Cresceu."
+      className={`${heightClasses} w-auto object-contain select-none ${className}`}
+    />
   )
 }

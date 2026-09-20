@@ -41,3 +41,4 @@ export const BusinessAvatar: React.FC<BusinessAvatarProps> = ({
     </div>
   )
 }
+

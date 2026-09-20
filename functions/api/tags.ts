@@ -78,17 +78,37 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 export const onRequestPut: PagesFunction<Env> = async (context) => {
   try {
     const data: any = await context.request.json()
+    if (Array.isArray(data.ids) && data.ids.length > 0) {
+      const ids = [...new Set(data.ids.filter((id: unknown) => typeof id === 'string'))].slice(0, 200)
+      if (!ids.length) return Response.json({ error: 'Nenhuma Tag válida informada' }, { status: 400 })
+      const statements = ids.map((id: string, index: number) => {
+        if (data.operation === 'return_to_stock') {
+          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = NULL, business_id = NULL, status = 'available', location = 'Estoque', activated_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id)
+        }
+        if (data.operation === 'assign') {
+          const location = data.location_mode === 'sequence'
+            ? `${String(data.location_prefix || 'Ponto').trim()} ${String(Number(data.location_start || 1) + index).padStart(2, '0')}`
+            : String(data.location || 'Ponto principal').trim()
+          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
+        }
+        throw new Error('Operação em lote inválida')
+      })
+      await context.env.DB.batch(statements)
+      return Response.json({ success: true, count: statements.length })
+    }
     if (!data.id) {
       return Response.json({ error: 'ID da Tag obrigatório' }, { status: 400 })
     }
 
+    const ownerProvided = Object.prototype.hasOwnProperty.call(data, 'owner_id')
+    const businessProvided = Object.prototype.hasOwnProperty.call(data, 'business_id')
     await context.env.DB.prepare(`
       UPDATE nfc_tags 
       SET name = COALESCE(?, name),
           location = COALESCE(?, location),
           status = COALESCE(?, status),
-          owner_id = COALESCE(?, owner_id),
-          business_id = COALESCE(?, business_id),
+          owner_id = CASE WHEN ? THEN ? ELSE owner_id END,
+          business_id = CASE WHEN ? THEN ? ELSE business_id END,
           activated_at = COALESCE(?, activated_at),
           updated_at = datetime('now')
       WHERE id = ?
@@ -96,7 +116,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       data.name ?? null,
       data.location ?? null,
       data.status ?? null,
+      ownerProvided ? 1 : 0,
       data.owner_id ?? null,
+      businessProvided ? 1 : 0,
       data.business_id ?? null,
       data.activated_at ?? null,
       data.id

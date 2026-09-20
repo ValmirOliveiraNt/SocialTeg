@@ -349,7 +349,18 @@ export const PublicTagRedirectPage: React.FC = () => {
       ? Boolean(cfg.menu_enabled)
       : Boolean(menuUrl) || destination?.type === 'website'
 
-  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl].filter(Boolean).length > 1
+  const contactUrl = cfg.contact_url || (destination?.type === 'contact' ? destination.target_url : '') || ''
+  const contactEnabled = cfg.contact_enabled !== undefined ? Boolean(cfg.contact_enabled) : destination?.type === 'contact'
+  const addressUrl = cfg.address_url || (destination?.type === 'address' ? destination.target_url : '') || ''
+  const addressEnabled = cfg.address_enabled !== undefined ? Boolean(cfg.address_enabled) : destination?.type === 'address'
+  const ifoodUrl = cfg.ifood_url || (destination?.type === 'ifood' ? destination.target_url : '') || ''
+  const ifoodEnabled = cfg.ifood_enabled !== undefined ? Boolean(cfg.ifood_enabled) : destination?.type === 'ifood'
+  const youtubeUrl = cfg.youtube_url || (destination?.type === 'youtube' ? destination.target_url : '') || ''
+  const youtubeEnabled = cfg.youtube_enabled !== undefined ? Boolean(cfg.youtube_enabled) : destination?.type === 'youtube'
+  const customUrl = cfg.custom_url || (destination?.type === 'custom_url' ? destination.target_url : '') || ''
+  const customEnabled = cfg.custom_enabled !== undefined ? Boolean(cfg.custom_enabled) : destination?.type === 'custom_url'
+
+  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, customEnabled && customUrl].filter(Boolean).length > 1
 
   return (
     <div className={`min-h-screen flex flex-col justify-between py-6 px-4 sm:px-6 ${templateStyles.page}`}>
@@ -477,6 +488,17 @@ export const PublicTagRedirectPage: React.FC = () => {
                 instagramEnabled={instagramEnabled}
                 whatsappUrl={whatsappUrl}
                 whatsappEnabled={whatsappEnabled}
+                contactUrl={contactUrl}
+                contactEnabled={contactEnabled}
+                addressUrl={addressUrl}
+                addressEnabled={addressEnabled}
+                ifoodUrl={ifoodUrl}
+                ifoodEnabled={ifoodEnabled}
+                youtubeUrl={youtubeUrl}
+                youtubeEnabled={youtubeEnabled}
+                customUrl={customUrl}
+                customLabel={cfg.custom_label}
+                customEnabled={customEnabled}
                 primaryColor={primaryColor}
                 fallbackUrl={destination?.target_url}
                 fallbackType={destination?.type}
@@ -503,7 +525,7 @@ export const PublicTagRedirectPage: React.FC = () => {
 
         <div className="mt-4 text-center">
           <div className={`inline-flex items-center gap-2 text-[11px] ${templateStyles.footer}`}>
-            <img src="/logo.png" alt="AvaliaTag" className="h-5 w-auto object-contain" />
+            <img src="/brand/logo-horizontal-color-600.png" alt="AvaliaTag" className="h-5 w-auto object-contain" />
             <span>Tag NFC Gerenciada por <strong>AvaliaTag</strong></span>
           </div>
         </div>
@@ -511,4 +533,3 @@ export const PublicTagRedirectPage: React.FC = () => {
     </div>
   )
 }
-

@@ -100,3 +100,4 @@ export const AdminLogsPage: React.FC = () => {
     </div>
   )
 }
+

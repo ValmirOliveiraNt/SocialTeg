@@ -1,5 +1,5 @@
 import React from 'react'
-import { ExternalLink, UtensilsCrossed } from 'lucide-react'
+import { ExternalLink, Link2, MapPin, Phone, ShoppingBag, UtensilsCrossed, Video } from 'lucide-react'
 import { InstagramIcon } from './InstagramIcon'
 import { GoogleIcon } from './GoogleIcon'
 import { WhatsAppIcon } from './WhatsAppIcon'
@@ -13,11 +13,22 @@ export interface ExternalActionsProps {
   instagramEnabled?: boolean
   whatsappUrl?: string | null
   whatsappEnabled?: boolean
+  contactUrl?: string | null
+  contactEnabled?: boolean
+  addressUrl?: string | null
+  addressEnabled?: boolean
+  ifoodUrl?: string | null
+  ifoodEnabled?: boolean
+  youtubeUrl?: string | null
+  youtubeEnabled?: boolean
+  customUrl?: string | null
+  customLabel?: string | null
+  customEnabled?: boolean
   primaryColor?: string
   className?: string
   fallbackUrl?: string | null
   fallbackType?: string | null
-  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website') => void
+  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'custom_url') => void
 }
 
 function checkValidUrl(url: string | null | undefined): boolean {
@@ -26,7 +37,7 @@ function checkValidUrl(url: string | null | undefined): boolean {
   if (!trimmed) return false
   try {
     const parsed = new URL(trimmed)
-    return parsed.protocol === 'http:' || parsed.protocol === 'https:'
+    return ['http:', 'https:', 'tel:', 'mailto:'].includes(parsed.protocol)
   } catch {
     return false
   }
@@ -41,6 +52,17 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   instagramEnabled = true,
   whatsappUrl,
   whatsappEnabled = true,
+  contactUrl,
+  contactEnabled = false,
+  addressUrl,
+  addressEnabled = false,
+  ifoodUrl,
+  ifoodEnabled = false,
+  youtubeUrl,
+  youtubeEnabled = false,
+  customUrl,
+  customLabel,
+  customEnabled = false,
   primaryColor = '#ea580c',
   className = '',
   fallbackUrl,
@@ -51,6 +73,11 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   let cleanGoogleUrl = checkValidUrl(googleReviewsUrl) ? googleReviewsUrl!.trim() : null
   let cleanInstagramUrl = checkValidUrl(instagramUrl) ? instagramUrl!.trim() : null
   let cleanWhatsappUrl = checkValidUrl(whatsappUrl) ? whatsappUrl!.trim() : null
+  const cleanContactUrl = checkValidUrl(contactUrl) ? contactUrl!.trim() : null
+  const cleanAddressUrl = checkValidUrl(addressUrl) ? addressUrl!.trim() : null
+  const cleanIfoodUrl = checkValidUrl(ifoodUrl) ? ifoodUrl!.trim() : null
+  const cleanYoutubeUrl = checkValidUrl(youtubeUrl) ? youtubeUrl!.trim() : null
+  const cleanCustomUrl = checkValidUrl(customUrl) ? customUrl!.trim() : null
 
   // Compatibilidade com tags legadas onde o destino direto estava em target_url
   if (
@@ -79,7 +106,7 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     ariaLabel: string
     style?: React.CSSProperties
     className: string
-    destinationType: 'google_review' | 'instagram' | 'whatsapp' | 'website'
+    destinationType: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'custom_url'
   }> = []
 
   // 1. Cardápio Online
@@ -155,11 +182,21 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     })
   }
 
+  const additionalActions = [
+    { enabled: addressEnabled, url: cleanAddressUrl, id: 'address', title: 'Como chegar', ariaLabel: 'Abrir endereço e rota em nova aba', icon: <MapPin className="w-4 h-4" />, className: 'bg-blue-600 hover:bg-blue-700 text-white', destinationType: 'address' as const },
+    { enabled: contactEnabled, url: cleanContactUrl, id: 'contact', title: 'Contato', ariaLabel: 'Abrir canal de contato', icon: <Phone className="w-4 h-4" />, className: 'bg-cyan-700 hover:bg-cyan-800 text-white', destinationType: 'contact' as const },
+    { enabled: ifoodEnabled, url: cleanIfoodUrl, id: 'ifood', title: 'Pedir no iFood', ariaLabel: 'Abrir loja no iFood em nova aba', icon: <ShoppingBag className="w-4 h-4" />, className: 'bg-red-600 hover:bg-red-700 text-white', destinationType: 'ifood' as const },
+    { enabled: youtubeEnabled, url: cleanYoutubeUrl, id: 'youtube', title: 'YouTube', ariaLabel: 'Abrir canal do YouTube em nova aba', icon: <Video className="w-4 h-4" />, className: 'bg-[#ff0033] hover:bg-red-700 text-white', destinationType: 'youtube' as const },
+    { enabled: customEnabled, url: cleanCustomUrl, id: 'custom', title: customLabel?.trim() || 'Link personalizado', ariaLabel: 'Abrir link personalizado em nova aba', icon: <Link2 className="w-4 h-4" />, className: 'bg-violet-600 hover:bg-violet-700 text-white', destinationType: 'custom_url' as const },
+  ]
+
+  additionalActions.forEach((action) => {
+    if (action.enabled && action.url) actions.push({ ...action, url: action.url })
+  })
+
   if (actions.length === 0) {
     return null
   }
-
-  console.log('[ExternalActions:render]', actions.map((a) => a.id))
 
   return (
     <nav
@@ -197,4 +234,3 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     </nav>
   )
 }
-

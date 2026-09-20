@@ -171,7 +171,7 @@ export const CustomerBusinessesPage: React.FC = () => {
       city: city.trim(),
       state: state.trim().toUpperCase(),
       country: 'Brasil',
-      logo_url: logoUrl || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop',
+      logo_url: logoUrl || '/brand/app-icon-1024.png',
       menuUrl: cleanMenu,
       googleReviewsUrl: cleanGoogle,
       instagramUrl: cleanInsta,

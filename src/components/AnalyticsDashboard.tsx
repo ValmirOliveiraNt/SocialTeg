@@ -51,6 +51,10 @@ const destinations: Record<string, string> = {
   instagram: 'Instagram',
   whatsapp: 'WhatsApp',
   website: 'Site / cardápio',
+  contact: 'Contato',
+  address: 'Como chegar',
+  ifood: 'iFood',
+  youtube: 'YouTube',
   custom_url: 'Link personalizado',
 }
 const payment: Record<string, string> = {
@@ -1005,4 +1009,3 @@ function Insight({
     </div>
   )
 }
-

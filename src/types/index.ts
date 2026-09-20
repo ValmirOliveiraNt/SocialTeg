@@ -53,6 +53,10 @@ export type DestinationType =
   | 'instagram'
   | 'whatsapp'
   | 'website'
+  | 'contact'
+  | 'address'
+  | 'ifood'
+  | 'youtube'
   | 'custom_url'
 
 export interface DestinationConfig {
@@ -74,6 +78,17 @@ export interface DestinationConfig {
   whatsapp_enabled?: boolean
   menu_url?: string
   menu_enabled?: boolean
+  contact_url?: string
+  contact_enabled?: boolean
+  address_url?: string
+  address_enabled?: boolean
+  ifood_url?: string
+  ifood_enabled?: boolean
+  youtube_url?: string
+  youtube_enabled?: boolean
+  custom_url?: string
+  custom_label?: string
+  custom_enabled?: boolean
   [key: string]: any
 }
 
@@ -115,6 +130,7 @@ export interface TagScan {
   browser: string
   country?: string
   region?: string
+  location_precision?: 'ip_city' | 'ip_state' | string
   referrer?: string
   tag_name?: string
   tag_location?: string
@@ -220,4 +236,3 @@ export interface AuditLog {
   ip_address?: string
   created_at: string
 }
-

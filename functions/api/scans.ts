@@ -54,17 +54,10 @@ function formatScanRow(row: Record<string, any>) {
     timezone = 'America/Sao_Paulo'
   }
   const { ip_hash: _metadata, ...safe } = row
-  const regionParts = String(row.region || '')
-    .split(',')
-    .map((part) => part.trim())
-    .filter(Boolean)
-  // Older records may contain city, state and country. City-level IP data is
-  // too imprecise for mobile networks, so expose only the broader estimate.
-  const broadRegion =
-    regionParts.length >= 3 ? regionParts.slice(-2).join(', ') : regionParts.join(', ')
   return {
     ...safe,
-    region: broadRegion,
+    region: String(row.region || '').trim(),
+    location_precision: meta.location_precision || 'ip_state',
     timezone,
     local_date: scanned.toLocaleDateString('pt-BR', { timeZone: timezone }),
     local_time: scanned.toLocaleTimeString('pt-BR', { timeZone: timezone }),
@@ -145,12 +138,15 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     const text = (value: unknown, max = 120) =>
       typeof value === 'string' ? value.slice(0, max) : ''
     const country = text(cf.country)
-    // IP geolocation can point to a mobile carrier or ISP gateway in another
-    // city. Keep only the broader state/country estimate and never present it
-    // as the tag's physical location.
-    const region = [text(cf.region || cf.regionCode), country]
-      .filter(Boolean)
-      .join(', ')
+    const city = text(cf.city)
+    const regionCode = text(cf.regionCode)
+    const regionName = text(cf.region)
+    // Cloudflare derives these values from the visitor's network IP. Prefer
+    // city/UF when available, while keeping a clear fallback for older or less
+    // precise carrier networks.
+    const region = city
+      ? `${city}/${regionCode || regionName}`
+      : [regionName || regionCode, country].filter(Boolean).join(', ')
     const source = text(data.reading_method)
     const readingMethod =
       source === 'qr' || source === 'QR Code'
@@ -178,6 +174,11 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       'instagram',
       'whatsapp',
       'website',
+      'contact',
+      'address',
+      'ifood',
+      'youtube',
+      'custom_url',
     ].includes(data.destination_type)
       ? data.destination_type
       : tag.type
@@ -189,6 +190,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       timezone: text(cf.timezone || data.timezone),
       screen: text(data.screen, 40),
       language: text(data.language, 40),
+      location_precision: city ? 'ip_city' : 'ip_state',
     }
     // Repeated submissions of the same page opening are idempotent, without tracking individual visitors.
     await env.DB.prepare(
@@ -217,4 +219,3 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
     return apiFailure(error)
   }
 }
-

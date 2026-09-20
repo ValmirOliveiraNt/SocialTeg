@@ -139,6 +139,21 @@ export const api = {
         body: JSON.stringify(tags),
       })
     },
+    async bulkUpdate(payload: {
+      ids: string[]
+      operation: 'assign' | 'return_to_stock'
+      owner_id?: string
+      business_id?: string
+      location_mode?: 'same' | 'sequence'
+      location?: string
+      location_prefix?: string
+      location_start?: number
+    }): Promise<{ success: boolean; count: number }> {
+      return request<{ success: boolean; count: number }>('/api/tags', {
+        method: 'PUT',
+        body: JSON.stringify(payload),
+      })
+    },
     async delete(id: string): Promise<{ success: boolean }> {
       return request<{ success: boolean }>(`/api/tags?id=${encodeURIComponent(id)}`, {
         method: 'DELETE',
@@ -273,4 +288,3 @@ export const api = {
     },
   },
 }
-

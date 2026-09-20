@@ -62,3 +62,4 @@ export const InstagramIcon: React.FC<{
     </svg>
   )
 }
+

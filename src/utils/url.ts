@@ -6,3 +6,4 @@ export function getPublicTagUrl(publicId: string): string {
   const baseUrl = isLocal ? 'https://avaliatag.pages.dev' : window.location.origin
   return `${baseUrl}/t/${publicId}`
 }
+

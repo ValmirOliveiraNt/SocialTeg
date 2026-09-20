@@ -154,3 +154,4 @@ export const AdminProductsPage: React.FC = () => {
     </div>
   )
 }
+

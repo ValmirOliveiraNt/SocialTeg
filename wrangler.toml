@@ -6,3 +6,4 @@ pages_build_output_dir = "dist"
 binding = "DB"
 database_name = "avaliatag-db"
 database_id = "cc0b095b-06cb-4e18-ae1d-18e40022fea6"
+

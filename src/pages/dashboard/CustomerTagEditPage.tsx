@@ -19,6 +19,10 @@ import {
   Clock,
   MapPin,
   Activity,
+  Phone,
+  Video,
+  Link2,
+  ShoppingBag,
 } from 'lucide-react'
 import { InstagramIcon } from '../../components/InstagramIcon'
 import { WhatsAppIcon } from '../../components/WhatsAppIcon'
@@ -66,6 +70,18 @@ export const CustomerTagEditPage: React.FC = () => {
 
   const [menuEnabled, setMenuEnabled] = useState(false)
   const [menuUrl, setMenuUrl] = useState('')
+
+  const [contactEnabled, setContactEnabled] = useState(false)
+  const [contactValue, setContactValue] = useState('')
+  const [addressEnabled, setAddressEnabled] = useState(false)
+  const [addressValue, setAddressValue] = useState('')
+  const [ifoodEnabled, setIfoodEnabled] = useState(false)
+  const [ifoodUrl, setIfoodUrl] = useState('')
+  const [youtubeEnabled, setYoutubeEnabled] = useState(false)
+  const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [customEnabled, setCustomEnabled] = useState(false)
+  const [customUrl, setCustomUrl] = useState('')
+  const [customLabel, setCustomLabel] = useState('Saiba mais')
 
   // Configurações de Apresentação
   const [directRedirect, setDirectRedirect] = useState(false)
@@ -170,6 +186,18 @@ export const CustomerTagEditPage: React.FC = () => {
             : Boolean(initialMenu) || dest?.type === 'website'
         )
 
+        setContactValue(cfg.contact_url || '')
+        setContactEnabled(Boolean(cfg.contact_enabled))
+        setAddressValue(cfg.address_url || '')
+        setAddressEnabled(Boolean(cfg.address_enabled))
+        setIfoodUrl(cfg.ifood_url || '')
+        setIfoodEnabled(Boolean(cfg.ifood_enabled))
+        setYoutubeUrl(cfg.youtube_url || '')
+        setYoutubeEnabled(Boolean(cfg.youtube_enabled))
+        setCustomUrl(cfg.custom_url || '')
+        setCustomLabel(cfg.custom_label || 'Saiba mais')
+        setCustomEnabled(Boolean(cfg.custom_enabled))
+
         setDirectRedirect(cfg.direct_redirect ?? false)
         setPageTemplate(cfg.page_template || 'classic')
         setWelcomeTitle(cfg.welcome_title || '')
@@ -224,6 +252,24 @@ export const CustomerTagEditPage: React.FC = () => {
       cleanMenu = `https://${cleanMenu}`
     }
 
+    const withHttps = (value: string) => {
+      const clean = value.trim()
+      return clean && !/^[a-z][a-z\d+.-]*:/i.test(clean) ? `https://${clean}` : clean
+    }
+    const rawContact = contactValue.trim()
+    const cleanContact = rawContact.includes('@') && !rawContact.includes('://')
+      ? `mailto:${rawContact}`
+      : /^\+?[\d\s().-]+$/.test(rawContact)
+        ? `tel:${rawContact.replace(/[^\d+]/g, '')}`
+        : withHttps(rawContact)
+    const rawAddress = addressValue.trim()
+    const cleanAddress = rawAddress && !/^[a-z][a-z\d+.-]*:/i.test(rawAddress)
+      ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}`
+      : rawAddress
+    const cleanIfood = withHttps(ifoodUrl)
+    const cleanYoutube = withHttps(youtubeUrl)
+    const cleanCustom = withHttps(customUrl)
+
     // Determina o tipo e target_url principal (para redirecionamento direto)
     let primaryType: DestinationType = 'google_review'
     let primaryTargetUrl = ''
@@ -240,6 +286,21 @@ export const CustomerTagEditPage: React.FC = () => {
     } else if (menuEnabled && cleanMenu) {
       primaryType = 'website'
       primaryTargetUrl = cleanMenu
+    } else if (contactEnabled && cleanContact) {
+      primaryType = 'contact'
+      primaryTargetUrl = cleanContact
+    } else if (addressEnabled && cleanAddress) {
+      primaryType = 'address'
+      primaryTargetUrl = cleanAddress
+    } else if (ifoodEnabled && cleanIfood) {
+      primaryType = 'ifood'
+      primaryTargetUrl = cleanIfood
+    } else if (youtubeEnabled && cleanYoutube) {
+      primaryType = 'youtube'
+      primaryTargetUrl = cleanYoutube
+    } else if (customEnabled && cleanCustom) {
+      primaryType = 'custom_url'
+      primaryTargetUrl = cleanCustom
     } else {
       primaryTargetUrl = cleanGoogle || cleanInsta || cleanWhatsapp || cleanMenu || 'https://google.com'
     }
@@ -274,6 +335,17 @@ export const CustomerTagEditPage: React.FC = () => {
           whatsapp_message: whatsappText.trim(),
           menu_enabled: menuEnabled,
           menu_url: cleanMenu,
+          contact_enabled: contactEnabled,
+          contact_url: cleanContact,
+          address_enabled: addressEnabled,
+          address_url: cleanAddress,
+          ifood_enabled: ifoodEnabled,
+          ifood_url: cleanIfood,
+          youtube_enabled: youtubeEnabled,
+          youtube_url: cleanYoutube,
+          custom_enabled: customEnabled,
+          custom_url: cleanCustom,
+          custom_label: customLabel.trim() || 'Saiba mais',
           direct_redirect: directRedirect,
           page_template: pageTemplate,
           welcome_title: welcomeTitle,
@@ -302,7 +374,15 @@ export const CustomerTagEditPage: React.FC = () => {
     }
   }
 
-  const activeButtonsCount = [googleEnabled, instagramEnabled, whatsappEnabled, menuEnabled].filter(Boolean).length
+  const activeButtonsCount = [googleEnabled, instagramEnabled, whatsappEnabled, menuEnabled, contactEnabled, addressEnabled, ifoodEnabled, youtubeEnabled, customEnabled].filter(Boolean).length
+
+  const additionalChannels = [
+    { id: 'contact', title: 'Contato', description: 'Telefone, e-mail ou página de atendimento', placeholder: 'contato@empresa.com ou (84) 99999-9999', enabled: contactEnabled, setEnabled: setContactEnabled, value: contactValue, setValue: setContactValue, icon: Phone, color: 'text-cyan-700 bg-cyan-50' },
+    { id: 'address', title: 'Endereço / Como chegar', description: 'Endereço completo ou link do Google Maps', placeholder: 'Av. Principal, 100 - Parnamirim/RN', enabled: addressEnabled, setEnabled: setAddressEnabled, value: addressValue, setValue: setAddressValue, icon: MapPin, color: 'text-blue-700 bg-blue-50' },
+    { id: 'ifood', title: 'iFood', description: 'Leve o cliente direto para sua loja', placeholder: 'https://www.ifood.com.br/delivery/...', enabled: ifoodEnabled, setEnabled: setIfoodEnabled, value: ifoodUrl, setValue: setIfoodUrl, icon: ShoppingBag, color: 'text-red-700 bg-red-50' },
+    { id: 'youtube', title: 'YouTube', description: 'Canal, vídeo ou playlist em destaque', placeholder: 'https://youtube.com/@seucanal', enabled: youtubeEnabled, setEnabled: setYoutubeEnabled, value: youtubeUrl, setValue: setYoutubeUrl, icon: Video, color: 'text-red-600 bg-red-50' },
+    { id: 'custom', title: 'Link personalizado', description: 'Qualquer página importante para seu público', placeholder: 'https://seusite.com/pagina', enabled: customEnabled, setEnabled: setCustomEnabled, value: customUrl, setValue: setCustomUrl, icon: Link2, color: 'text-violet-700 bg-violet-50' },
+  ]
 
   if (!tag) {
     return <div className="p-8 text-slate-500 text-sm">Carregando dados da Tag...</div>
@@ -434,7 +514,7 @@ export const CustomerTagEditPage: React.FC = () => {
                   {scans[0].region && (
                     <span className="text-[11px] text-slate-500 flex items-center gap-0.5">
                       <MapPin className="w-3 h-3 text-slate-400" />
-                      Rede aproximada: {scans[0].region}
+                      Localização estimada: {scans[0].region}
                     </span>
                   )}
                 </>
@@ -848,6 +928,42 @@ export const CustomerTagEditPage: React.FC = () => {
             </div>
           </div>
 
+          <div className="mt-6 pt-5 border-t border-slate-200">
+            <div className="mb-4">
+              <h3 className="text-sm font-bold text-slate-900">Canais adicionais</h3>
+              <p className="text-xs text-slate-500 mt-1">Ative somente os atalhos úteis para o cliente. Cada abertura será medida separadamente.</p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {additionalChannels.map((channel) => {
+                const Icon = channel.icon
+                return (
+                  <div key={channel.id} className={`rounded-2xl border p-4 transition ${channel.enabled ? 'border-blue-200 bg-white shadow-2xs' : 'border-slate-200 bg-slate-50/70'}`}>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-start gap-3 min-w-0">
+                        <div className={`w-9 h-9 rounded-xl flex items-center justify-center shrink-0 ${channel.color}`}><Icon className="w-4 h-4" /></div>
+                        <div>
+                          <h4 className="text-xs font-bold text-slate-900">{channel.title}</h4>
+                          <p className="text-[11px] leading-relaxed text-slate-500 mt-0.5">{channel.description}</p>
+                        </div>
+                      </div>
+                      <button type="button" role="switch" aria-checked={channel.enabled} onClick={() => channel.setEnabled(!channel.enabled)} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-blue-600 focus:ring-offset-2 ${channel.enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}>
+                        <span className={`pointer-events-none inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow-sm transition-transform ${channel.enabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                      </button>
+                    </div>
+                    {channel.enabled && (
+                      <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                        {channel.id === 'custom' && (
+                          <input type="text" value={customLabel} onChange={(e) => setCustomLabel(e.target.value)} maxLength={28} placeholder="Texto do botão (ex: Reservar agora)" className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+                        )}
+                        <input type="text" value={channel.value} onChange={(e) => channel.setValue(e.target.value)} placeholder={channel.placeholder} className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-blue-500" />
+                      </div>
+                    )}
+                  </div>
+                )
+              })}
+            </div>
+          </div>
+
           {/* Prévia em tempo real */}
           <div className="mt-6 p-4 bg-slate-50 border border-slate-200 rounded-2xl">
             <div className="flex items-center justify-between mb-3">
@@ -877,6 +993,17 @@ export const CustomerTagEditPage: React.FC = () => {
                   : ''
               }
               whatsappEnabled={whatsappEnabled}
+              contactUrl={contactValue.includes('@') ? `mailto:${contactValue}` : contactValue.match(/^\+?[\d\s().-]+$/) ? `tel:${contactValue.replace(/[^\d+]/g, '')}` : contactValue}
+              contactEnabled={contactEnabled}
+              addressUrl={addressValue && !addressValue.startsWith('http') ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(addressValue)}` : addressValue}
+              addressEnabled={addressEnabled}
+              ifoodUrl={ifoodUrl.startsWith('http') ? ifoodUrl : ifoodUrl ? `https://${ifoodUrl}` : ''}
+              ifoodEnabled={ifoodEnabled}
+              youtubeUrl={youtubeUrl.startsWith('http') ? youtubeUrl : youtubeUrl ? `https://${youtubeUrl}` : ''}
+              youtubeEnabled={youtubeEnabled}
+              customUrl={customUrl.startsWith('http') ? customUrl : customUrl ? `https://${customUrl}` : ''}
+              customLabel={customLabel}
+              customEnabled={customEnabled}
               primaryColor={primaryColor}
             />
           </div>
@@ -1100,4 +1227,3 @@ export const CustomerTagEditPage: React.FC = () => {
     </div>
   )
 }
-

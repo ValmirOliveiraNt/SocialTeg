@@ -167,3 +167,4 @@ export const StorePage: React.FC = () => {
     </div>
   )
 }
+

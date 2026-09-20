@@ -186,3 +186,4 @@ VALUES
 
 INSERT OR IGNORE INTO users (id, name, email, phone, role, status, plan_id)
 VALUES ('u-admin', 'Administrador', 'admin@avaliatag.com.br', '(11) 99999-0000', 'admin', 'active', 'plan-enterprise');
+

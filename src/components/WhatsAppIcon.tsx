@@ -18,3 +18,4 @@ export const WhatsAppIcon: React.FC<{ className?: string; color?: string }> = ({
     />
   </svg>
 )
+

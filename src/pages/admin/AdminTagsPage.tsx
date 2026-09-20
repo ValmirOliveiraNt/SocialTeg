@@ -12,11 +12,14 @@ import {
   X,
   Download,
   Trash2,
+  Boxes,
+  Undo2,
 } from 'lucide-react'
 import { NFCTag, TagStatus, Product, User, Business, TagScan } from '../../types'
 import { api } from '../../services/api'
 import { QRCodeModal } from '../../components/QRCodeModal'
 import { NFCWriterModal } from '../../components/NFCWriterModal'
+import { BatchNFCWriterModal } from '../../components/BatchNFCWriterModal'
 import { SavingIndicator } from '../../components/SavingIndicator'
 import { getPublicTagUrl } from '../../utils/url'
 
@@ -27,6 +30,8 @@ export const AdminTagsPage: React.FC = () => {
   const [selectedTagForQR, setSelectedTagForQR] = useState<NFCTag | null>(null)
   const [tagToWrite, setTagToWrite] = useState<NFCTag | null>(null)
   const [copiedId, setCopiedId] = useState<string | null>(null)
+  const [selectedTagIds, setSelectedTagIds] = useState<Set<string>>(new Set())
+  const [nfcBatchQueue, setNfcBatchQueue] = useState<NFCTag[]>([])
 
   const [tags, setTags] = useState<NFCTag[]>([])
   const [products, setProducts] = useState<Product[]>([])
@@ -45,6 +50,11 @@ export const AdminTagsPage: React.FC = () => {
   const [transferModalOpen, setTransferModalOpen] = useState(false)
   const [tagToTransfer, setTagToTransfer] = useState<NFCTag | null>(null)
   const [targetOwnerId, setTargetOwnerId] = useState('')
+  const [targetBusinessId, setTargetBusinessId] = useState('')
+  const [locationMode, setLocationMode] = useState<'same' | 'sequence'>('sequence')
+  const [batchLocation, setBatchLocation] = useState('Ponto principal')
+  const [locationPrefix, setLocationPrefix] = useState('Mesa')
+  const [locationStart, setLocationStart] = useState(1)
 
   useEffect(() => {
     api.tags.getAll().then(setTags).catch(() => {})
@@ -66,6 +76,19 @@ export const AdminTagsPage: React.FC = () => {
       return matchSearch && matchStatus
     })
   }, [tags, searchTerm, statusFilter])
+
+  const selectedTags = filteredTags.filter((tag) => selectedTagIds.has(tag.id))
+  const allFilteredSelected = filteredTags.length > 0 && selectedTags.length === filteredTags.length
+  const targetBusinesses = businesses.filter((business) => business.owner_id === targetOwnerId)
+
+  const toggleSelection = (id: string) => setSelectedTagIds((current) => {
+    const next = new Set(current)
+    if (next.has(id)) next.delete(id)
+    else next.add(id)
+    return next
+  })
+
+  const toggleAll = () => setSelectedTagIds(allFilteredSelected ? new Set() : new Set(filteredTags.map((tag) => tag.id)))
 
   const handleCopyLink = (publicId: string) => {
     const url = getPublicTagUrl(publicId)
@@ -155,6 +178,8 @@ export const AdminTagsPage: React.FC = () => {
         entity_id: 'batch',
         details: `Lote com ${newTags.length} Tags adicionado ao sistema.`,
       })
+      setSelectedTagIds(new Set(newTags.map((tag) => tag.id)))
+      setNfcBatchQueue(newTags)
     } catch (err: any) {
       alert(err.message || 'Erro ao gerar lote')
     }
@@ -192,37 +217,52 @@ export const AdminTagsPage: React.FC = () => {
 
   const handleOpenTransfer = (tag: NFCTag) => {
     setTagToTransfer(tag)
-    setTargetOwnerId(tag.owner_id || users[0]?.id || '')
+    const ownerId = tag.owner_id || users[0]?.id || ''
+    setTargetOwnerId(ownerId)
+    setTargetBusinessId(tag.business_id || businesses.find((business) => business.owner_id === ownerId)?.id || '')
+    setTransferModalOpen(true)
+  }
+
+  const handleOpenBatchTransfer = () => {
+    setTagToTransfer(null)
+    const ownerId = users[0]?.id || ''
+    setTargetOwnerId(ownerId)
+    setTargetBusinessId(businesses.find((business) => business.owner_id === ownerId)?.id || '')
     setTransferModalOpen(true)
   }
 
   const handleSaveTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (!tagToTransfer || !targetOwnerId) return
+    const ids = tagToTransfer ? [tagToTransfer.id] : selectedTags.map((tag) => tag.id)
+    if (!ids.length || !targetOwnerId) return
 
     const targetUser = users.find((u) => u.id === targetOwnerId)
-    const targetBiz = businesses.find((b) => b.owner_id === targetOwnerId)
-
-    const updated: NFCTag = {
-      ...tagToTransfer,
-      owner_id: targetOwnerId,
-      business_id: targetBiz?.id,
-      status: 'active',
-      updated_at: new Date().toISOString(),
-    }
-
     try {
-      await api.tags.save(updated)
+      await api.tags.bulkUpdate({ ids, operation: 'assign', owner_id: targetOwnerId, business_id: targetBusinessId || undefined, location_mode: locationMode, location: batchLocation, location_prefix: locationPrefix, location_start: locationStart })
       await api.logs.add({
-        action: 'TRANSFER_TAG',
+        action: ids.length > 1 ? 'BULK_ASSIGN_TAGS' : 'TRANSFER_TAG',
         entity_type: 'nfc_tag',
-        entity_id: tagToTransfer.id,
-        details: `Tag ${tagToTransfer.serial_number} transferida para o cliente ${targetUser?.name}.`,
+        entity_id: ids.length > 1 ? 'batch' : ids[0],
+        details: `${ids.length} Tag(s) vinculada(s) ao cliente ${targetUser?.name}.`,
       })
     } catch {}
 
     setTransferModalOpen(false)
+    setSelectedTagIds(new Set())
     setRefreshTrigger((prev) => prev + 1)
+  }
+
+  const handleReturnToStock = async () => {
+    const ids = selectedTags.map((tag) => tag.id)
+    if (!ids.length || !confirm(`Desvincular ${ids.length} Tag(s) e devolvê-las ao estoque? O histórico de leituras será preservado.`)) return
+    try {
+      await api.tags.bulkUpdate({ ids, operation: 'return_to_stock' })
+      await api.logs.add({ action: 'BULK_RETURN_TAGS_TO_STOCK', entity_type: 'nfc_tag', entity_id: 'batch', details: `${ids.length} Tag(s) devolvida(s) ao estoque com o histórico preservado.` })
+      setSelectedTagIds(new Set())
+      setRefreshTrigger((value) => value + 1)
+    } catch (error: any) {
+      alert(error?.message || 'Não foi possível devolver as Tags ao estoque.')
+    }
   }
 
   return (
@@ -285,11 +325,24 @@ export const AdminTagsPage: React.FC = () => {
         </div>
       </div>
 
+      {selectedTags.length > 0 && (
+        <div className="sticky top-3 z-20 rounded-2xl bg-slate-900 text-white p-3 shadow-xl flex flex-col lg:flex-row lg:items-center justify-between gap-3">
+          <div className="flex items-center gap-3"><div className="w-9 h-9 rounded-xl bg-white/10 flex items-center justify-center"><Boxes className="w-4 h-4" /></div><div><p className="text-sm font-bold">{selectedTags.length} Tag(s) selecionada(s)</p><p className="text-[10px] text-slate-300">Ações em lote preservam o histórico individual.</p></div></div>
+          <div className="flex flex-wrap gap-2">
+            <button type="button" onClick={() => setNfcBatchQueue(selectedTags)} className="px-3 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-xs font-bold flex items-center gap-1.5 cursor-pointer"><Radio className="w-4 h-4" />Gravar NFC em lote</button>
+            <button type="button" onClick={handleOpenBatchTransfer} className="px-3 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-xs font-bold flex items-center gap-1.5 cursor-pointer"><ArrowRightLeft className="w-4 h-4" />Vincular ao cliente</button>
+            <button type="button" onClick={handleReturnToStock} className="px-3 py-2 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-bold flex items-center gap-1.5 cursor-pointer"><Undo2 className="w-4 h-4" />Devolver ao estoque</button>
+            <button type="button" onClick={() => setSelectedTagIds(new Set())} className="px-3 py-2 text-xs font-bold text-slate-300 hover:text-white cursor-pointer">Limpar seleção</button>
+          </div>
+        </div>
+      )}
+
       <div className="bg-white rounded-3xl border border-slate-200 shadow-2xs overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse text-xs">
             <thead>
               <tr className="bg-slate-50 border-b border-slate-200 text-[11px] font-bold text-slate-500 uppercase tracking-wider">
+                <th className="w-12 py-3.5 pl-4 pr-1 text-center"><input type="checkbox" checked={allFilteredSelected} onChange={toggleAll} aria-label="Selecionar todas as Tags filtradas" className="w-4 h-4 accent-purple-600 cursor-pointer" /></th>
                 <th className="py-3.5 px-4">Tag & Serial</th>
                 <th className="py-3.5 px-4">Proprietário (Cliente)</th>
                 <th className="py-3.5 px-4">Localização / Negócio</th>
@@ -301,7 +354,7 @@ export const AdminTagsPage: React.FC = () => {
             <tbody className="divide-y divide-slate-100 text-slate-700">
               {filteredTags.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="py-12 text-center text-slate-400">
+                  <td colSpan={7} className="py-12 text-center text-slate-400">
                     Nenhuma tag encontrada no estoque.
                   </td>
                 </tr>
@@ -312,7 +365,8 @@ export const AdminTagsPage: React.FC = () => {
                   const tagScans = scans.filter((s) => s.tag_id === tag.id)
 
                   return (
-                    <tr key={tag.id} className="hover:bg-slate-50/70 transition">
+                    <tr key={tag.id} className={`hover:bg-slate-50/70 transition ${selectedTagIds.has(tag.id) ? 'bg-purple-50/50' : ''}`}>
+                      <td className="py-3.5 pl-4 pr-1 text-center"><input type="checkbox" checked={selectedTagIds.has(tag.id)} onChange={() => toggleSelection(tag.id)} aria-label={`Selecionar ${tag.name}`} className="w-4 h-4 accent-purple-600 cursor-pointer" /></td>
                       <td className="py-3.5 px-4">
                         <div className="flex items-center gap-3">
                           <div className="w-9 h-9 rounded-xl bg-purple-50 text-purple-700 flex items-center justify-center font-bold shrink-0">
@@ -590,7 +644,7 @@ export const AdminTagsPage: React.FC = () => {
         </div>
       )}
 
-      {transferModalOpen && tagToTransfer && (
+      {transferModalOpen && (tagToTransfer || selectedTags.length > 0) && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
           <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full p-6 border border-slate-200 relative">
             <button
@@ -604,7 +658,7 @@ export const AdminTagsPage: React.FC = () => {
               Associar / Transferir Tag NFC
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Serial: <span className="font-mono font-bold text-slate-800">{tagToTransfer.serial_number}</span>
+              {tagToTransfer ? <>Serial: <span className="font-mono font-bold text-slate-800">{tagToTransfer.serial_number}</span></> : <>{selectedTags.length} Tags selecionadas para vinculação coletiva</>}
             </p>
 
             <form onSubmit={handleSaveTransfer} className="space-y-4 text-xs">
@@ -614,7 +668,7 @@ export const AdminTagsPage: React.FC = () => {
                 </label>
                 <select
                   value={targetOwnerId}
-                  onChange={(e) => setTargetOwnerId(e.target.value)}
+                  onChange={(e) => { const ownerId = e.target.value; setTargetOwnerId(ownerId); setTargetBusinessId(businesses.find((business) => business.owner_id === ownerId)?.id || '') }}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden"
                 >
                   {users.map((u) => (
@@ -623,6 +677,24 @@ export const AdminTagsPage: React.FC = () => {
                     </option>
                   ))}
                 </select>
+              </div>
+
+              <div>
+                <label className="block font-semibold text-slate-700 mb-1 uppercase">Estabelecimento</label>
+                <select value={targetBusinessId} onChange={(e) => setTargetBusinessId(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden">
+                  <option value="">Sem estabelecimento definido</option>
+                  {targetBusinesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+                </select>
+              </div>
+
+              <div className="rounded-2xl border border-slate-200 p-3 space-y-3">
+                <label className="block font-semibold text-slate-700 uppercase">Pontos físicos</label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button type="button" onClick={() => setLocationMode('same')} className={`p-2 rounded-xl border text-xs font-bold cursor-pointer ${locationMode === 'same' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'}`}>Mesmo local</button>
+                  <button type="button" onClick={() => setLocationMode('sequence')} className={`p-2 rounded-xl border text-xs font-bold cursor-pointer ${locationMode === 'sequence' ? 'border-blue-500 bg-blue-50 text-blue-700' : 'border-slate-200 text-slate-600'}`}>Numerar em sequência</button>
+                </div>
+                {locationMode === 'same' ? <input value={batchLocation} onChange={(e) => setBatchLocation(e.target.value)} placeholder="Ex.: Balcão principal" className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /> : <div className="grid grid-cols-2 gap-2"><input value={locationPrefix} onChange={(e) => setLocationPrefix(e.target.value)} placeholder="Ex.: Mesa" className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /><input type="number" min={1} value={locationStart} onChange={(e) => setLocationStart(Number(e.target.value))} className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /></div>}
+                <p className="text-[10px] text-slate-400">Prévia: {locationMode === 'same' ? batchLocation : `${locationPrefix} ${String(locationStart).padStart(2, '0')}, ${locationPrefix} ${String(locationStart + 1).padStart(2, '0')}…`}</p>
               </div>
 
               <div className="pt-2 flex justify-end gap-2">
@@ -651,6 +723,10 @@ export const AdminTagsPage: React.FC = () => {
 
       {tagToWrite && (
         <NFCWriterModal tag={tagToWrite} onClose={() => setTagToWrite(null)} />
+      )}
+
+      {nfcBatchQueue.length > 0 && (
+        <BatchNFCWriterModal tags={nfcBatchQueue} onClose={() => setNfcBatchQueue([])} />
       )}
     </div>
   )

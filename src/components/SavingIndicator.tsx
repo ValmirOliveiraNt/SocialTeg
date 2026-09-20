@@ -16,3 +16,4 @@ export const SavingIndicator: React.FC<SavingIndicatorProps> = ({
     {label && <span className="ml-1 text-xs font-semibold">{label}</span>}
   </span>
 )
+

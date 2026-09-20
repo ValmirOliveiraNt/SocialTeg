@@ -31,14 +31,14 @@ export const AdminLayout: React.FC = () => {
   ]
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col selection:bg-purple-600 selection:text-white">
-      <div className="bg-purple-950 text-purple-200 text-xs py-1.5 px-4 flex items-center justify-between border-b border-purple-900">
+    <div className="min-h-screen bg-[#F4F7FB] flex flex-col selection:bg-blue-600 selection:text-white">
+      <div className="bg-[#071A33] text-blue-100 text-xs py-1.5 px-4 flex items-center justify-between border-b border-blue-950">
         <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-purple-400 animate-pulse"></span>
+          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
           <span className="font-bold text-white">PAINEL MESTRE DO ADMINISTRADOR (SaaS)</span>
         </div>
         <div className="flex items-center gap-3">
-          <Link to="/" className="text-[11px] text-purple-300 hover:text-white flex items-center gap-1">
+          <Link to="/" className="text-[11px] text-blue-300 hover:text-white flex items-center gap-1">
             <span>Página Inicial</span>
             <ExternalLink className="w-3 h-3" />
           </Link>
@@ -46,7 +46,7 @@ export const AdminLayout: React.FC = () => {
       </div>
 
       <div className="flex-1 flex">
-        <aside className="hidden lg:flex w-64 bg-slate-900 text-slate-300 flex-col justify-between p-4 sticky top-0 h-screen border-r border-slate-800">
+        <aside className="hidden lg:flex w-64 bg-[#0B1F3B] text-slate-300 flex-col justify-between p-4 sticky top-0 h-screen border-r border-blue-950">
           <div className="space-y-6">
             <Link to="/admin" className="flex items-center gap-2 px-2 hover:opacity-90 transition">
               <BrandLogo size="md" theme="dark" />
@@ -64,8 +64,8 @@ export const AdminLayout: React.FC = () => {
                     to={item.path}
                     className={`flex items-center gap-3 px-3 py-2.5 rounded-xl text-xs font-semibold transition ${
                       isActive
-                        ? 'bg-purple-600 text-white font-bold'
-                        : 'text-slate-400 hover:bg-slate-800 hover:text-white'
+                        ? 'bg-[#006CFF] text-white font-bold shadow-sm shadow-blue-900/40'
+                        : 'text-slate-300 hover:bg-white/10 hover:text-white'
                     }`}
                   >
                     <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -78,12 +78,12 @@ export const AdminLayout: React.FC = () => {
 
           <div className="pt-4 border-t border-slate-800 space-y-3">
             <div className="flex items-center gap-3 px-2">
-              <div className="w-8 h-8 rounded-full bg-purple-900 flex items-center justify-center text-purple-300 font-bold text-xs">
+              <div className="w-8 h-8 rounded-full bg-blue-900 flex items-center justify-center text-blue-200 font-bold text-xs">
                 AD
               </div>
               <div className="min-w-0 flex-1">
                 <div className="text-xs font-bold text-white truncate">{currentUser?.name}</div>
-                <div className="text-[10px] text-purple-300 truncate">admin@avaliatag.com.br</div>
+                <div className="text-[10px] text-blue-300 truncate">admin@avaliatag.com.br</div>
               </div>
             </div>
 
@@ -101,7 +101,7 @@ export const AdminLayout: React.FC = () => {
         </aside>
 
         <div className="flex-1 flex flex-col min-w-0">
-          <header className="lg:hidden bg-slate-900 text-white p-4 flex items-center justify-between border-b border-slate-800">
+          <header className="lg:hidden bg-[#0B1F3B] text-white p-4 flex items-center justify-between border-b border-blue-950">
             <Link to="/admin">
               <BrandLogo size="sm" theme="dark" />
             </Link>
@@ -115,7 +115,7 @@ export const AdminLayout: React.FC = () => {
           </header>
 
           {mobileNavOpen && (
-            <div className="lg:hidden bg-slate-900 text-slate-300 p-4 space-y-2 border-b border-slate-800">
+            <div className="lg:hidden bg-[#0B1F3B] text-slate-300 p-4 space-y-2 border-b border-blue-950">
               {navItems.map((item) => {
                 const Icon = item.icon
                 const isActive = location.pathname === item.path
@@ -125,7 +125,7 @@ export const AdminLayout: React.FC = () => {
                     to={item.path}
                     onClick={() => setMobileNavOpen(false)}
                     className={`flex items-center gap-3 px-3 py-2 rounded-lg text-sm font-semibold ${
-                      isActive ? 'bg-purple-600 text-white' : 'text-slate-300'
+                      isActive ? 'bg-[#006CFF] text-white' : 'text-slate-300'
                     }`}
                   >
                     <Icon className="w-4 h-4" />

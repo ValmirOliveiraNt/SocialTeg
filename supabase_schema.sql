@@ -267,3 +267,4 @@ VALUES
 ('prod-sticker-nfc', 'Adesivo NFC Resinada Ultra-Resistente', 'Adesivo resinado 3D com camada metálica anti-interferência para colar em cardápios, vidros, mesas ou paredes.', 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', 29.90, 300, 'active', '["Resina epóxi 3D flexível", "Proteção Anti-Metal", "Adesivo 3M de alta fixação", "À prova de chuva e sol"]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
 
+

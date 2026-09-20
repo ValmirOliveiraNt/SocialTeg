@@ -233,4 +233,3 @@ test('Firefox iOS and Android tablets are classified correctly', () => {
   assert.equal(parseUserAgent('Mozilla Android 12 Chrome/100').device, 'Tablet')
   assert.equal(parseUserAgent('').device, 'Não identificado')
 })
-
