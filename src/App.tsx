@@ -28,7 +28,8 @@ import { AdminProductsPage } from './pages/admin/AdminProductsPage'
 import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 
 const CustomerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser } = useAuth()
+  const { currentUser, isRestoringSession } = useAuth()
+  if (isRestoringSession) return <SessionLoading />
   if (!currentUser) {
     return <Navigate to="/login" replace />
   }
@@ -36,12 +37,19 @@ const CustomerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) =>
 }
 
 const AdminRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const { currentUser, isAdmin } = useAuth()
+  const { currentUser, isAdmin, isRestoringSession } = useAuth()
+  if (isRestoringSession) return <SessionLoading />
   if (!currentUser || !isAdmin) {
     return <Navigate to="/login" replace />
   }
   return <>{children}</>
 }
+
+const SessionLoading = () => (
+  <div className="min-h-screen flex items-center justify-center bg-slate-50 text-sm font-medium text-slate-600">
+    Restaurando sua sessão com segurança…
+  </div>
+)
 
 export function App() {
   return (

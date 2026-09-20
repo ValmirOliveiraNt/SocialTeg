@@ -5,6 +5,7 @@ import { api } from '../services/api'
 interface AuthContextType {
   currentUser: User | null
   token: string | null
+  isRestoringSession: boolean
   isAdmin: boolean
   isCustomer: boolean
   login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>
@@ -22,22 +23,26 @@ const TOKEN_KEY = 'avaliatag_session_token'
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [currentUser, setCurrentUser] = useState<User | null>(null)
   const [token, setToken] = useState<string | null>(() => localStorage.getItem(TOKEN_KEY))
+  const [isRestoringSession, setIsRestoringSession] = useState(true)
 
   useEffect(() => {
     async function checkCurrentSession() {
       const savedToken = localStorage.getItem(TOKEN_KEY)
-      if (savedToken) {
-        try {
-          const res = await api.auth.getMe()
-          if (res.user) {
-            setCurrentUser(res.user)
-            return
-          }
-        } catch {
-          localStorage.removeItem(TOKEN_KEY)
-          setToken(null)
-          setCurrentUser(null)
-        }
+      if (!savedToken) {
+        setIsRestoringSession(false)
+        return
+      }
+      try {
+        // The server remains the source of truth. Do not trust a locally stored
+        // token until it has been checked for expiry, revocation and account status.
+        const res = await api.auth.getMe()
+        if (res.user) setCurrentUser(res.user)
+      } catch {
+        localStorage.removeItem(TOKEN_KEY)
+        setToken(null)
+        setCurrentUser(null)
+      } finally {
+        setIsRestoringSession(false)
       }
     }
 
@@ -117,6 +122,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       value={{
         currentUser,
         token,
+        isRestoringSession,
         isAdmin: currentUser?.role === 'admin',
         isCustomer: currentUser?.role === 'customer',
         login,
