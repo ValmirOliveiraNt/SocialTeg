@@ -59,7 +59,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch {}
   }
 
-  const login = async (email: string, password = ''): Promise<{ success: boolean; error?: string }> => {
+  const login = async (email: string, password = ''): Promise<{ success: boolean; role?: UserRole; error?: string }> => {
     try {
       const data = await api.auth.login(email, password)
       if (data.user && data.token) {
