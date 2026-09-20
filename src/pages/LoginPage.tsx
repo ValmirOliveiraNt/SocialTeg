@@ -33,7 +33,7 @@ export const LoginPage: React.FC = () => {
     } else {
       const res = await login(email, password)
       if (res.success) {
-        if (email.toLowerCase().includes('admin')) {
+        if (res.role === 'admin') {
           navigate('/admin')
         } else {
           navigate('/dashboard')

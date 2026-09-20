@@ -73,7 +73,7 @@ export const CheckoutPage: React.FC = () => {
         }
       } else {
         const ok = await login(userEmail.trim(), password)
-        if (!ok) {
+        if (!ok.success) {
           setError('Usuário não encontrado com este e-mail.')
           return
         }

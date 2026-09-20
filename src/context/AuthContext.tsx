@@ -8,7 +8,7 @@ interface AuthContextType {
   isRestoringSession: boolean
   isAdmin: boolean
   isCustomer: boolean
-  login: (email: string, password?: string) => Promise<{ success: boolean; error?: string }>
+  login: (email: string, password?: string) => Promise<{ success: boolean; role?: UserRole; error?: string }>
   loginAs: (role: UserRole) => void
   register: (name: string, email: string, phone: string, password: string) => Promise<{ user: User | null; error?: string }>
   logout: () => Promise<void>
@@ -66,7 +66,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         localStorage.setItem(TOKEN_KEY, data.token)
         setToken(data.token)
         setCurrentUser(data.user)
-        return { success: true }
+        return { success: true, role: data.user.role }
       }
       return { success: false, error: 'Credenciais inválidas' }
     } catch (err: any) {
