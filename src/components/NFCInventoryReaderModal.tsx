@@ -1,7 +1,6 @@
 import React, { useRef, useState } from 'react'
 import { AlertCircle, CheckCircle2, Radio, Smartphone, X } from 'lucide-react'
 import { NFCTag } from '../types'
-import { api } from '../services/api'
 
 function publicIdFromNdef(event: any): string | null {
   const urlRecord = event.message?.records?.find((record: any) => record.recordType === 'url')
@@ -15,7 +14,7 @@ function publicIdFromNdef(event: any): string | null {
   }
 }
 
-export const NFCInventoryReaderModal: React.FC<{ onClose: () => void }> = ({ onClose }) => {
+export const NFCInventoryReaderModal: React.FC<{ tags: NFCTag[]; onClose: () => void }> = ({ tags, onClose }) => {
   const [state, setState] = useState<'idle' | 'reading' | 'found' | 'error'>('idle')
   const [tag, setTag] = useState<NFCTag | null>(null)
   const [message, setMessage] = useState('')
@@ -49,7 +48,7 @@ export const NFCInventoryReaderModal: React.FC<{ onClose: () => void }> = ({ onC
           return
         }
         try {
-          const result = await api.tags.identifyByPublicId(publicId)
+          const result = tags.find((item) => item.public_id.toLowerCase() === publicId.toLowerCase())
           if (!result?.serial_number) throw new Error('Tag não cadastrada no estoque.')
           setTag(result)
           setState('found')

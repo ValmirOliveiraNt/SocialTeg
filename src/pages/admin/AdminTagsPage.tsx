@@ -737,7 +737,7 @@ export const AdminTagsPage: React.FC = () => {
       {nfcBatchQueue.length > 0 && (
         <BatchNFCWriterModal tags={nfcBatchQueue} onClose={() => setNfcBatchQueue([])} />
       )}
-      {inventoryReaderOpen && <NFCInventoryReaderModal onClose={() => setInventoryReaderOpen(false)} />}
+      {inventoryReaderOpen && <NFCInventoryReaderModal tags={tags} onClose={() => setInventoryReaderOpen(false)} />}
     </div>
   )
 }
