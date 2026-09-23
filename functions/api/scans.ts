@@ -4,6 +4,42 @@ interface Env {
   DB: D1Database
 }
 
+const RAW_SCAN_RETENTION_DAYS = 90
+const MAX_READINGS_PER_TAG = 100
+
+async function pruneScanHistory(db: D1Database, tagId: string) {
+  const pageView = `(NOT json_valid(ip_hash)
+    OR json_extract(ip_hash, '$.version') != 2
+    OR COALESCE(json_extract(ip_hash, '$.event'), 'page_view') = 'page_view')`
+  await db.batch([
+    db.prepare(
+      `DELETE FROM tag_scans
+       WHERE julianday(scanned_at) < julianday('now', ?)`
+    ).bind(`-${RAW_SCAN_RETENTION_DAYS} days`),
+    db.prepare(
+      `DELETE FROM tag_scans
+       WHERE id IN (
+         SELECT id FROM tag_scans
+         WHERE tag_id = ? AND ${pageView}
+         ORDER BY julianday(scanned_at) DESC, id DESC
+         LIMIT -1 OFFSET ?
+       )`
+    ).bind(tagId, MAX_READINGS_PER_TAG),
+  ])
+  await db.prepare(
+    `DELETE FROM tag_scans AS child
+     WHERE child.tag_id = ?
+       AND json_valid(child.ip_hash)
+       AND json_extract(child.ip_hash, '$.version') = 2
+       AND json_extract(child.ip_hash, '$.event') = 'destination_open'
+       AND NOT EXISTS (
+         SELECT 1 FROM tag_scans AS parent
+         WHERE parent.tag_id = child.tag_id
+           AND parent.id = 'scan-' || json_extract(child.ip_hash, '$.parent_event_id')
+       )`
+  ).bind(tagId).run()
+}
+
 async function scanRateLimit(request: Request, db: D1Database, tagId: string): Promise<boolean> {
   const ip = request.headers.get('cf-connecting-ip') || 'unknown'
   const source = new TextEncoder().encode(`${ip}:${tagId}`)
@@ -245,6 +281,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         JSON.stringify(meta),
       )
       .run()
+    await pruneScanHistory(env.DB, tag.id)
     return Response.json({ success: true, id }, { status: 201 })
   } catch (error) {
     if (error instanceof SyntaxError)

@@ -257,6 +257,39 @@ test('new tag records telemetry using the inherited business destination', async
   f.sqlite.close()
 })
 
+test('scan retention keeps only 100 readings per tag for up to 90 days and removes orphan actions', async () => {
+  const f = setup()
+  const insert = f.sqlite.prepare(
+    'INSERT INTO tag_scans(id,tag_id,scanned_at,destination_type,ip_hash) VALUES (?,?,?,?,?)',
+  )
+  for (let i = 0; i < 105; i++) {
+    const eventId = `00000000-0000-4000-8000-${String(i).padStart(12, '0')}`
+    const time = new Date(Date.now() - (105 - i) * 1000).toISOString()
+    insert.run(`scan-${eventId}`, 'ta', time, 'website', JSON.stringify({ version: 2, event: 'page_view' }))
+    insert.run(`click-${i}`, 'ta', time, 'website', JSON.stringify({ version: 2, event: 'destination_open', parent_event_id: eventId }))
+  }
+  insert.run('ancient', 'tb', '2020-01-01T00:00:00.000Z', 'website', JSON.stringify({ version: 2, event: 'page_view' }))
+
+  const response = await record({
+    request: new Request('https://example.test/api/scans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tag_id: 'ta', telemetry_version: 2,
+        event_id: '99999999-9999-4999-8999-999999999999',
+        reading_method: 'qr',
+      }),
+    }),
+    env: { DB: f.DB },
+  })
+
+  assert.equal(response.status, 201)
+  assert.equal(f.sqlite.prepare(`SELECT COUNT(*) AS total FROM tag_scans WHERE tag_id = 'ta' AND (NOT json_valid(ip_hash) OR json_extract(ip_hash, '$.event') = 'page_view')`).get().total, 100)
+  assert.equal(f.sqlite.prepare("SELECT COUNT(*) AS total FROM tag_scans WHERE id = 'ancient'").get().total, 0)
+  assert.equal(f.sqlite.prepare(`SELECT COUNT(*) AS total FROM tag_scans child WHERE json_extract(child.ip_hash, '$.event') = 'destination_open' AND NOT EXISTS (SELECT 1 FROM tag_scans parent WHERE parent.tag_id = child.tag_id AND parent.id = 'scan-' || json_extract(child.ip_hash, '$.parent_event_id'))`).get().total, 0)
+  f.sqlite.close()
+})
+
 test('Firefox iOS and Android tablets are classified correctly', () => {
   assert.equal(
     parseUserAgent('Mozilla iPhone FxiOS/100 Safari/604').browser,
