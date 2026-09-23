@@ -68,6 +68,13 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
   try {
     const data: any = await context.request.json()
     const user = await requireSession(context.request, context.env.DB)
+    if (user.role === 'admin') {
+      if (typeof data.owner_id !== 'string' || !data.owner_id.trim()) {
+        return Response.json({ error: 'Selecione o cliente responsável pelo estabelecimento.' }, { status: 400 })
+      }
+      const owner = await context.env.DB.prepare("SELECT id FROM users WHERE id = ? AND role = 'customer'").bind(data.owner_id).first()
+      if (!owner) return Response.json({ error: 'Cliente responsável inválido.' }, { status: 400 })
+    }
     const id = data.id || 'b-' + Date.now() + '-' + Math.random().toString(36).substring(2, 6)
     const menuUrl = data.menuUrl || data.menu_url || null
     const googleReviewsUrl = data.googleReviewsUrl || data.google_reviews_url || null

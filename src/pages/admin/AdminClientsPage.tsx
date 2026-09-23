@@ -3,12 +3,18 @@ import {
   Search,
   Filter,
   Edit2,
+  Plus,
+  Building2,
+  Trash2,
+  SlidersHorizontal,
+  AlertCircle,
   Lock,
   Unlock,
   X,
 } from 'lucide-react'
 import { User, UserStatus, Business, NFCTag } from '../../types'
 import { api } from '../../services/api'
+import { BusinessExperienceModal } from '../../components/BusinessExperienceModal'
 
 export const AdminClientsPage: React.FC = () => {
   const [searchTerm, setSearchTerm] = useState('')
@@ -22,6 +28,15 @@ export const AdminClientsPage: React.FC = () => {
   const [selectedUser, setSelectedUser] = useState<User | null>(null)
   const [editingName, setEditingName] = useState('')
   const [editingPhone, setEditingPhone] = useState('')
+  const [businessManagerUser, setBusinessManagerUser] = useState<User | null>(null)
+  const [editingBusiness, setEditingBusiness] = useState<Business | null>(null)
+  const [businessFormOpen, setBusinessFormOpen] = useState(false)
+  const [businessSaving, setBusinessSaving] = useState(false)
+  const [businessError, setBusinessError] = useState('')
+  const [configBusiness, setConfigBusiness] = useState<Business | null>(null)
+  const [businessForm, setBusinessForm] = useState({
+    name: '', description: '', phone: '', email: '', website: '', address: '', city: '', state: '',
+  })
 
   useEffect(() => {
     api.users.getAll().then((list) => {
@@ -78,6 +93,56 @@ export const AdminClientsPage: React.FC = () => {
 
     setSelectedUser(null)
     setRefreshTrigger((prev) => prev + 1)
+  }
+
+  const openBusinessForm = (business?: Business) => {
+    setEditingBusiness(business || null)
+    setBusinessError('')
+    setBusinessForm({
+      name: business?.name || '', description: business?.description || '', phone: business?.phone || '',
+      email: business?.email || businessManagerUser?.email || '', website: business?.website || '',
+      address: business?.address || '', city: business?.city || '', state: business?.state || '',
+    })
+    setBusinessFormOpen(true)
+  }
+
+  const handleSaveBusiness = async (event: React.FormEvent) => {
+    event.preventDefault()
+    if (!businessManagerUser) return
+    setBusinessSaving(true)
+    setBusinessError('')
+    try {
+      await api.businesses.save({
+        id: editingBusiness?.id,
+        owner_id: businessManagerUser.id,
+        ...businessForm,
+        name: businessForm.name.trim(),
+        description: businessForm.description.trim(),
+        phone: businessForm.phone.trim(),
+        email: businessForm.email.trim(),
+        website: businessForm.website.trim(),
+        address: businessForm.address.trim(),
+        city: businessForm.city.trim(),
+        state: businessForm.state.trim().toUpperCase(),
+        country: editingBusiness?.country || 'Brasil',
+      })
+      setBusinessFormOpen(false)
+      setRefreshTrigger((prev) => prev + 1)
+    } catch (err) {
+      setBusinessError(err instanceof Error ? err.message : 'Não foi possível salvar o estabelecimento.')
+    } finally {
+      setBusinessSaving(false)
+    }
+  }
+
+  const handleDeleteBusiness = async (business: Business) => {
+    if (!confirm(`Excluir o estabelecimento “${business.name}”? As tags vinculadas serão desvinculadas, mas não serão apagadas.`)) return
+    try {
+      await api.businesses.delete(business.id)
+      setRefreshTrigger((prev) => prev + 1)
+    } catch (err) {
+      alert(err instanceof Error ? err.message : 'Não foi possível excluir o estabelecimento.')
+    }
   }
 
   return (
@@ -205,6 +270,15 @@ export const AdminClientsPage: React.FC = () => {
 
                           <button
                             type="button"
+                            onClick={() => setBusinessManagerUser(u)}
+                            title="Gerenciar estabelecimentos"
+                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition cursor-pointer"
+                          >
+                            <Building2 className="w-4 h-4" />
+                          </button>
+
+                          <button
+                            type="button"
                             onClick={() => handleToggleBlock(u)}
                             title={u.status === 'active' ? 'Bloquear Cliente' : 'Desbloquear'}
                             className={`p-1.5 rounded-lg transition cursor-pointer ${
@@ -292,6 +366,91 @@ export const AdminClientsPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+
+      {businessManagerUser && (
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/60 p-4 backdrop-blur-xs">
+          <section role="dialog" aria-modal="true" aria-labelledby="business-manager-title" className="mx-auto my-4 w-full max-w-3xl rounded-3xl border border-slate-200 bg-white p-5 shadow-2xl sm:p-6">
+            <div className="flex items-start justify-between gap-4 border-b border-slate-100 pb-4">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-blue-600">Conta de {businessManagerUser.name}</p>
+                <h2 id="business-manager-title" className="mt-1 text-lg font-bold text-slate-900">Estabelecimentos do cliente</h2>
+                <p className="mt-1 text-xs text-slate-500">Cadastre, altere os dados ou configure a experiência das tags sem acessar a conta do cliente.</p>
+              </div>
+              <button type="button" aria-label="Fechar gerenciamento de estabelecimentos" onClick={() => setBusinessManagerUser(null)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700">
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <div className="mt-5 flex justify-end">
+              <button type="button" onClick={() => openBusinessForm()} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-bold text-white shadow-xs transition hover:bg-blue-700">
+                <Plus className="h-4 w-4" /> Adicionar estabelecimento
+              </button>
+            </div>
+
+            <div className="mt-4 space-y-3">
+              {businesses.filter((business) => business.owner_id === businessManagerUser.id).map((business) => {
+                const tagCount = tags.filter((tag) => tag.business_id === business.id).length
+                return (
+                  <article key={business.id} className="rounded-2xl border border-slate-200 p-4">
+                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                      <div className="min-w-0">
+                        <h3 className="truncate text-sm font-bold text-slate-900">{business.name}</h3>
+                        <p className="mt-1 text-xs text-slate-500">{[business.address, business.city, business.state].filter(Boolean).join(' · ') || 'Endereço não informado'}</p>
+                        <p className="mt-1 text-[11px] font-medium text-slate-400">{tagCount} tag{tagCount === 1 ? '' : 's'} vinculada{tagCount === 1 ? '' : 's'}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <button type="button" onClick={() => setConfigBusiness(business)} className="inline-flex items-center gap-1.5 rounded-xl bg-blue-50 px-3 py-2 text-xs font-semibold text-blue-700 hover:bg-blue-100">
+                          <SlidersHorizontal className="h-3.5 w-3.5" /> Configurar
+                        </button>
+                        <button type="button" onClick={() => openBusinessForm(business)} className="inline-flex items-center gap-1.5 rounded-xl bg-slate-100 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-200">
+                          <Edit2 className="h-3.5 w-3.5" /> Editar
+                        </button>
+                        <button type="button" onClick={() => void handleDeleteBusiness(business)} className="inline-flex items-center gap-1.5 rounded-xl bg-red-50 px-3 py-2 text-xs font-semibold text-red-600 hover:bg-red-100">
+                          <Trash2 className="h-3.5 w-3.5" /> Excluir
+                        </button>
+                      </div>
+                    </div>
+                  </article>
+                )
+              })}
+              {!businesses.some((business) => business.owner_id === businessManagerUser.id) && (
+                <div className="rounded-2xl border border-dashed border-slate-300 py-10 text-center text-xs text-slate-500">Este cliente ainda não possui estabelecimentos cadastrados.</div>
+              )}
+            </div>
+          </section>
+        </div>
+      )}
+
+      {businessFormOpen && businessManagerUser && (
+        <div className="fixed inset-0 z-[60] overflow-y-auto bg-slate-950/65 p-4 backdrop-blur-xs">
+          <section role="dialog" aria-modal="true" aria-labelledby="business-form-title" className="mx-auto my-4 w-full max-w-lg rounded-3xl border border-slate-200 bg-white p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div><h2 id="business-form-title" className="text-lg font-bold text-slate-900">{editingBusiness ? 'Editar estabelecimento' : 'Novo estabelecimento'}</h2><p className="mt-1 text-xs text-slate-500">Este cadastro ficará vinculado a {businessManagerUser.name}.</p></div>
+              <button type="button" aria-label="Fechar formulário" onClick={() => setBusinessFormOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100"><X className="h-5 w-5" /></button>
+            </div>
+            {businessError && <div role="alert" className="mt-4 flex gap-2 rounded-xl border border-red-200 bg-red-50 p-3 text-xs text-red-700"><AlertCircle className="h-4 w-4 shrink-0" />{businessError}</div>}
+            <form onSubmit={handleSaveBusiness} className="mt-5 space-y-4 text-xs">
+              <label className="block font-semibold text-slate-700">Nome do estabelecimento *<input required value={businessForm.name} onChange={(event) => setBusinessForm((current) => ({ ...current, name: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+              <label className="block font-semibold text-slate-700">Descrição<input value={businessForm.description} onChange={(event) => setBusinessForm((current) => ({ ...current, description: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+              <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                <label className="block font-semibold text-slate-700">Telefone<input value={businessForm.phone} onChange={(event) => setBusinessForm((current) => ({ ...current, phone: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+                <label className="block font-semibold text-slate-700">E-mail<input type="email" value={businessForm.email} onChange={(event) => setBusinessForm((current) => ({ ...current, email: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+              </div>
+              <label className="block font-semibold text-slate-700">Site<input type="url" value={businessForm.website} onChange={(event) => setBusinessForm((current) => ({ ...current, website: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+              <label className="block font-semibold text-slate-700">Endereço *<input required value={businessForm.address} onChange={(event) => setBusinessForm((current) => ({ ...current, address: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+              <div className="grid grid-cols-2 gap-3">
+                <label className="block font-semibold text-slate-700">Cidade *<input required value={businessForm.city} onChange={(event) => setBusinessForm((current) => ({ ...current, city: event.target.value }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal focus:bg-white focus:outline-hidden" /></label>
+                <label className="block font-semibold text-slate-700">UF *<input required maxLength={2} value={businessForm.state} onChange={(event) => setBusinessForm((current) => ({ ...current, state: event.target.value.toUpperCase() }))} className="mt-1.5 w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2.5 font-normal uppercase focus:bg-white focus:outline-hidden" /></label>
+              </div>
+              <div className="flex justify-end gap-2 pt-2"><button type="button" onClick={() => setBusinessFormOpen(false)} className="rounded-xl px-4 py-2.5 font-semibold text-slate-600 hover:bg-slate-100">Cancelar</button><button type="submit" disabled={businessSaving} className="rounded-xl bg-blue-600 px-5 py-2.5 font-bold text-white hover:bg-blue-700 disabled:opacity-60">{businessSaving ? 'Salvando...' : 'Salvar estabelecimento'}</button></div>
+            </form>
+          </section>
+        </div>
+      )}
+
+      {configBusiness && (
+        <BusinessExperienceModal business={configBusiness} onClose={() => setConfigBusiness(null)} onSaved={() => { setConfigBusiness(null); setRefreshTrigger((prev) => prev + 1) }} />
       )}
     </div>
   )
