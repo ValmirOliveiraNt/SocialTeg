@@ -225,6 +225,37 @@ test('collection is idempotent, uses server destination, and leaves missing loca
   f.sqlite.close()
 })
 
+test('new tag records telemetry using the inherited business destination', async () => {
+  const f = setup()
+  f.sqlite.exec(`
+    UPDATE businesses
+      SET default_destination_type = 'google_review',
+          default_target_url = 'https://example.test/review',
+          default_destination_configuration = '{"google_enabled":true}'
+      WHERE id = 'ba';
+    INSERT INTO nfc_tags(id,public_id,serial_number,name,status,owner_id,business_id,configuration_mode)
+      VALUES ('inherited','pi','si','Tag nova','active','a','ba','business');
+  `)
+  const response = await record({
+    request: new Request('https://example.test/api/scans', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tag_id: 'inherited',
+        telemetry_version: 2,
+        event_id: '22345678-1234-4234-8234-123456789abc',
+        reading_method: 'qr',
+      }),
+    }),
+    env: { DB: f.DB },
+  })
+  assert.equal(response.status, 201)
+  const scan = f.sqlite.prepare("SELECT * FROM tag_scans WHERE tag_id = 'inherited'").get()
+  assert.equal(scan.destination_type, 'google_review')
+  assert.equal(JSON.parse(scan.ip_hash).reading_method, 'qr')
+  f.sqlite.close()
+})
+
 test('Firefox iOS and Android tablets are classified correctly', () => {
   assert.equal(
     parseUserAgent('Mozilla iPhone FxiOS/100 Safari/604').browser,

@@ -34,6 +34,9 @@ export interface Business {
   menu_url?: string
   google_reviews_url?: string
   instagram_url?: string
+  default_destination_type?: DestinationType
+  default_target_url?: string
+  default_destination_configuration?: DestinationConfig
   created_at: string
   updated_at: string
 }
@@ -47,6 +50,12 @@ export type TagStatus =
   | 'inactive'
   | 'blocked'
   | 'lost'
+
+export type TagAccessStatus =
+  | 'active'
+  | 'legacy_active'
+  | 'past_due_grace'
+  | 'subscription_suspended'
 
 export type DestinationType =
   | 'google_review'
@@ -113,11 +122,16 @@ export interface NFCTag {
   status: TagStatus
   owner_id?: string
   business_id?: string
+  configuration_mode?: 'business' | 'custom'
+  business?: Business
   name: string
   location?: string
   activated_at?: string
   created_at: string
   updated_at: string
+  access_status?: TagAccessStatus
+  subscription_status?: SubscriptionStatus
+  access_until?: string
 }
 
 export interface TagScan {
@@ -219,11 +233,65 @@ export interface Subscription {
   plan_id: string
   provider: string
   provider_subscription_id?: string
-  status: 'active' | 'past_due' | 'canceled' | 'trialing'
+  status: SubscriptionStatus
   started_at: string
-  expires_at: string
+  current_period_start?: string
+  current_period_end?: string
+  next_billing_at?: string
+  grace_period_ends_at?: string
+  cancel_at_period_end?: boolean
+  canceled_at?: string
+  ended_at?: string
+  payment_method_brand?: string
+  payment_method_last4?: string
+  billing_method?: 'qr_code' | 'pix_automatico'
+  collection_status?: CollectionStatus
+  collection_requested_at?: string
+  returned_at?: string
+  expires_at?: string
+  created_at: string
+  updated_at?: string
+}
+
+export interface PlateOrder {
+  id: string
+  user_id: string
+  business_id: string
+  business_name?: string
+  user_name?: string
+  user_email?: string
+  mode: 'subscription' | 'outright'
+  quantity: number
+  has_custom_logo: boolean
+  ownership: 'avaliatag' | 'customer'
+  requires_return: boolean
+  digital_access: 'full_subscription' | 'fixed_destination'
+  fixed_destination_url?: string
+  unit_price: number
+  customization_total: number
+  total: number
+  status: string
+  payment_status: string
+  pix_code?: string
+  tracking_code?: string
+  assigned_serials: string[]
   created_at: string
 }
+
+export type SubscriptionStatus =
+  | 'pending'
+  | 'active'
+  | 'past_due'
+  | 'canceled'
+  | 'expired'
+  | 'trialing'
+
+export type CollectionStatus =
+  | 'not_required'
+  | 'pending'
+  | 'scheduled'
+  | 'collected'
+  | 'not_returned'
 
 export interface AuditLog {
   id: string

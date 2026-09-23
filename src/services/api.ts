@@ -4,7 +4,9 @@ import {
   NFCTag,
   Order,
   Plan,
+  PlateOrder,
   Product,
+  Subscription,
   TagDestination,
   TagScan,
   User,
@@ -98,6 +100,9 @@ export const api = {
     async getById(id: string): Promise<Business | null> {
       return request<Business | null>(`/api/businesses?id=${encodeURIComponent(id)}`)
     },
+    async getPublicById(id: string): Promise<Business | null> {
+      return request<Business | null>(`/api/businesses?id=${encodeURIComponent(id)}&public=1`)
+    },
     async save(business: Partial<Business>): Promise<Business> {
       const isNew = !business.id || business.id.startsWith('temp-')
       return request<Business>('/api/businesses', {
@@ -165,8 +170,8 @@ export const api = {
     async getAll(): Promise<TagDestination[]> {
       return request<TagDestination[]>('/api/destinations')
     },
-    async getByTagId(tagId: string): Promise<TagDestination | null> {
-      const dest = await request<TagDestination | null>(`/api/destinations?tag_id=${encodeURIComponent(tagId)}`)
+    async getByTagId(tagId: string, scope: 'effective' | 'tag' = 'effective'): Promise<TagDestination | null> {
+      const dest = await request<TagDestination | null>(`/api/destinations?tag_id=${encodeURIComponent(tagId)}${scope === 'tag' ? '&scope=tag' : ''}`)
       if (dest && typeof dest.configuration === 'string') {
         try {
           dest.configuration = JSON.parse(dest.configuration)
@@ -244,11 +249,56 @@ export const api = {
     async getAll(): Promise<Plan[]> {
       return request<Plan[]>('/api/plans')
     },
-    async update(plan: Partial<Plan>): Promise<void> {
-      await request('/api/plans', {
+    async update(plan: Partial<Plan>): Promise<Plan> {
+      return request<Plan>('/api/plans', {
         method: 'PUT',
         body: JSON.stringify(plan),
       })
+    },
+  },
+
+  subscriptions: {
+    async getMine(): Promise<Subscription | null> {
+      return request<Subscription | null>('/api/subscriptions')
+    },
+    async getAll(): Promise<(Subscription & { user_name?: string; user_email?: string })[]> {
+      return request<(Subscription & { user_name?: string; user_email?: string })[]>('/api/subscriptions?all=1')
+    },
+    async cancel(): Promise<Subscription> {
+      return request<Subscription>('/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'cancel' }),
+      })
+    },
+    async subscribe(data: { document: string; accepted_terms: boolean }): Promise<{ subscription: Subscription; payment?: Record<string, any>; awaiting_confirmation: boolean }> {
+      return request<{ subscription: Subscription; payment?: Record<string, any>; awaiting_confirmation: boolean }>('/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'subscribe', ...data }),
+      })
+    },
+    async getAuthorization(): Promise<{ subscription: Subscription; payment?: Record<string, any> }> {
+      return request<{ subscription: Subscription; payment?: Record<string, any> }>('/api/subscriptions', {
+        method: 'POST',
+        body: JSON.stringify({ action: 'authorization' }),
+      })
+    },
+    async update(data: Partial<Subscription>): Promise<Subscription> {
+      return request<Subscription>('/api/subscriptions', {
+        method: 'PUT',
+        body: JSON.stringify(data),
+      })
+    },
+  },
+
+  plateOrders: {
+    async getAll(): Promise<PlateOrder[]> {
+      return request<PlateOrder[]>('/api/plate-orders')
+    },
+    async create(data: any): Promise<{ id: string; pix_code: string; total: number; ownership: string; requires_return: boolean; digital_access: string }> {
+      return request('/api/plate-orders', { method: 'POST', body: JSON.stringify(data) })
+    },
+    async update(data: Partial<PlateOrder>): Promise<void> {
+      await request('/api/plate-orders', { method: 'PUT', body: JSON.stringify(data) })
     },
   },
 

@@ -23,6 +23,7 @@
     "recharts": "^3.10.1"
   },
   "devDependencies": {
+    "@tailwindcss/oxide-win32-x64-msvc": "4.3.3",
     "@tailwindcss/vite": "^4.3.3",
     "@types/canvas-confetti": "^1.9.0",
     "@types/node": "^24.13.3",

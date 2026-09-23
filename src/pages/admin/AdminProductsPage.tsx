@@ -79,10 +79,12 @@ export const AdminProductsPage: React.FC = () => {
     const plan = plans.find((p) => p.id === planId)
     if (!plan || !Number.isFinite(newPrice) || newPrice < 0) return
     try {
-      await api.plans.update({ id: planId, price: newPrice })
-      setPlans((prev) => prev.map((p) => (p.id === planId ? { ...p, price: newPrice } : p)))
-      announce(`Preço do plano "${plan.name}" atualizado.`)
-    } catch {}
+      const updated = await api.plans.update({ id: planId, price: newPrice })
+      setPlans((prev) => prev.map((p) => (p.id === planId ? updated : p)))
+      announce(`Mensalidade de "${plan.name}" atualizada para R$ ${updated.price.toFixed(2).replace('.', ',')} no AvaliaTag e na SyncPay.`)
+    } catch (error: any) {
+      announce(error?.message || 'Não foi possível atualizar o valor do plano.')
+    }
   }
 
   return <div className="space-y-8 pb-12">

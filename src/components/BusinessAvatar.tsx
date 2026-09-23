@@ -3,7 +3,7 @@ import React, { useState } from 'react'
 interface BusinessAvatarProps {
   src?: string | null
   name?: string
-  size?: 'sm' | 'md' | 'lg'
+  size?: 'sm' | 'md' | 'lg' | 'xl'
   className?: string
 }
 
@@ -13,22 +13,23 @@ export const BusinessAvatar: React.FC<BusinessAvatarProps> = ({
   size = 'md',
   className = '',
 }) => {
-  const [hasError, setHasError] = useState(false)
+  const [failedSrc, setFailedSrc] = useState<string | null>(null)
   const initial = (name.trim().charAt(0) || 'E').toUpperCase()
 
   const sizeClasses = {
     sm: 'w-10 h-10 rounded-xl text-sm',
     md: 'w-16 h-16 rounded-2xl text-xl',
     lg: 'w-24 h-24 rounded-2xl text-3xl',
+    xl: 'w-28 h-28 sm:w-32 sm:h-32 rounded-[1.75rem] text-4xl',
   }[size]
 
-  if (src && !hasError) {
+  if (src && failedSrc !== src) {
     return (
       <img
         src={src}
         alt={name}
-        onError={() => setHasError(true)}
-        className={`${sizeClasses} object-cover bg-slate-100 ${className}`}
+        onError={() => setFailedSrc(src)}
+        className={`${sizeClasses} object-contain bg-white p-1 ${className}`}
       />
     )
   }
@@ -41,4 +42,3 @@ export const BusinessAvatar: React.FC<BusinessAvatarProps> = ({
     </div>
   )
 }
-

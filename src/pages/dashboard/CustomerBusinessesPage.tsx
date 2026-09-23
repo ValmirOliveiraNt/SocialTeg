@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, MapPin, Phone, Mail, Edit2, Trash2, X, AlertCircle, CheckCircle2, UtensilsCrossed } from 'lucide-react'
+import { Plus, MapPin, Phone, Mail, Edit2, Trash2, X, AlertCircle, CheckCircle2, UtensilsCrossed, SlidersHorizontal } from 'lucide-react'
 import { Business, NFCTag } from '../../types'
 import { api } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
@@ -7,6 +7,7 @@ import { InstagramIcon } from '../../components/InstagramIcon'
 import { GoogleIcon } from '../../components/GoogleIcon'
 import { BusinessAvatar } from '../../components/BusinessAvatar'
 import { SavingIndicator } from '../../components/SavingIndicator'
+import { BusinessExperienceModal } from '../../components/BusinessExperienceModal'
 
 export const CustomerBusinessesPage: React.FC = () => {
   const { currentUser } = useAuth()
@@ -18,6 +19,7 @@ export const CustomerBusinessesPage: React.FC = () => {
   const [loading, setLoading] = useState(false)
   const [urlError, setUrlError] = useState<string | null>(null)
   const [saveSuccessMsg, setSaveSuccessMsg] = useState<string | null>(null)
+  const [configBusiness, setConfigBusiness] = useState<Business | null>(null)
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
@@ -28,6 +30,7 @@ export const CustomerBusinessesPage: React.FC = () => {
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
+  const [coverUrl, setCoverUrl] = useState('')
 
   // Campos de Ações Externas Configuráveis
   const [menuUrl, setMenuUrl] = useState('')
@@ -54,7 +57,8 @@ export const CustomerBusinessesPage: React.FC = () => {
     setAddress('')
     setCity('São Paulo')
     setState('SP')
-    setLogoUrl('https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop')
+    setLogoUrl('')
+    setCoverUrl('')
     setMenuUrl('')
     setGoogleReviewsUrl('')
     setInstagramUrl('')
@@ -73,6 +77,7 @@ export const CustomerBusinessesPage: React.FC = () => {
     setCity(b.city)
     setState(b.state)
     setLogoUrl(b.logo_url)
+    setCoverUrl(b.cover_url || '')
     setMenuUrl(b.menuUrl || b.menu_url || '')
     setGoogleReviewsUrl(b.googleReviewsUrl || b.google_reviews_url || '')
     setInstagramUrl(b.instagramUrl || b.instagram_url || '')
@@ -92,26 +97,6 @@ export const CustomerBusinessesPage: React.FC = () => {
     }
   }
 
-  const validateUrl = (url: string, label: string): string | null => {
-    const trimmed = url.trim()
-    if (!trimmed) return null
-    let candidate = trimmed
-    if (label === 'Instagram' && candidate.startsWith('@')) {
-      candidate = `https://instagram.com/${candidate.replace('@', '')}`
-    } else if (!candidate.startsWith('http://') && !candidate.startsWith('https://')) {
-      candidate = `https://${candidate}`
-    }
-    try {
-      const parsed = new URL(candidate)
-      if (!parsed.hostname || !parsed.hostname.includes('.')) {
-        return `O campo "${label}" deve conter uma URL válida com domínio (ex: https://...).`
-      }
-      return null
-    } catch {
-      return `O campo "${label}" não é uma URL válida.`
-    }
-  }
-
   const normalizeUrl = (url: string, label: string): string => {
     const trimmed = url.trim()
     if (!trimmed) return ''
@@ -128,24 +113,6 @@ export const CustomerBusinessesPage: React.FC = () => {
     e.preventDefault()
     if (!currentUser) return
     setUrlError(null)
-
-    const errMenu = validateUrl(menuUrl, 'Cardápio Online')
-    if (errMenu) {
-      setUrlError(errMenu)
-      return
-    }
-
-    const errGoogle = validateUrl(googleReviewsUrl, 'Link para avaliações do Google')
-    if (errGoogle) {
-      setUrlError(errGoogle)
-      return
-    }
-
-    const errInsta = validateUrl(instagramUrl, 'Instagram')
-    if (errInsta) {
-      setUrlError(errInsta)
-      return
-    }
 
     setLoading(true)
 
@@ -171,7 +138,8 @@ export const CustomerBusinessesPage: React.FC = () => {
       city: city.trim(),
       state: state.trim().toUpperCase(),
       country: 'Brasil',
-      logo_url: logoUrl || '/brand/app-icon-1024.png',
+      logo_url: logoUrl.trim(),
+      cover_url: coverUrl.trim(),
       menuUrl: cleanMenu,
       googleReviewsUrl: cleanGoogle,
       instagramUrl: cleanInsta,
@@ -181,7 +149,7 @@ export const CustomerBusinessesPage: React.FC = () => {
     }
 
     try {
-      await api.businesses.save(biz)
+      const savedBusiness = await api.businesses.save(biz)
       setSaveSuccessMsg(
         editingBiz
           ? `Estabelecimento "${name}" atualizado com sucesso!`
@@ -190,6 +158,7 @@ export const CustomerBusinessesPage: React.FC = () => {
       setTimeout(() => setSaveSuccessMsg(null), 3000)
       loadData()
       setModalOpen(false)
+      if (!editingBiz) setConfigBusiness(savedBusiness)
     } catch (err: any) {
       setUrlError(err.message || 'Erro ao salvar estabelecimento')
     } finally {
@@ -205,7 +174,7 @@ export const CustomerBusinessesPage: React.FC = () => {
             Estabelecimentos Cadastrados
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Gerencie suas lojas, restaurantes e configure os botões de ações externas (Cardápio, Google e Instagram).
+            Gerencie os dados e a experiência completa compartilhada por todas as tags de cada estabelecimento.
           </p>
         </div>
 
@@ -228,9 +197,10 @@ export const CustomerBusinessesPage: React.FC = () => {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {businesses.map((biz) => {
           const bizTags = tags.filter((t) => t.business_id === biz.id)
-          const hasMenu = Boolean(biz.menuUrl || biz.menu_url)
-          const hasGoogle = Boolean(biz.googleReviewsUrl || biz.google_reviews_url)
-          const hasInsta = Boolean(biz.instagramUrl || biz.instagram_url)
+          const cfg = (biz.default_destination_configuration || {}) as import('../../types').DestinationConfig
+          const hasMenu = Boolean(cfg.menu_enabled && cfg.menu_url)
+          const hasGoogle = Boolean(cfg.google_enabled && cfg.google_url)
+          const hasInsta = Boolean(cfg.instagram_enabled && (cfg.instagram_url || cfg.instagram_handle))
 
           return (
             <div
@@ -304,6 +274,14 @@ export const CustomerBusinessesPage: React.FC = () => {
               <div className="pt-4 flex items-center justify-end gap-2">
                 <button
                   type="button"
+                  onClick={() => setConfigBusiness(biz)}
+                  className="mr-auto px-3 py-1.5 text-xs font-bold text-blue-700 bg-blue-50 hover:bg-blue-100 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
+                >
+                  <SlidersHorizontal className="w-3.5 h-3.5" />
+                  <span>Configurar experiência</span>
+                </button>
+                <button
+                  type="button"
                   onClick={() => handleOpenEdit(biz)}
                   className="px-3 py-1.5 text-xs font-semibold text-slate-700 bg-slate-100 hover:bg-slate-200 rounded-xl transition flex items-center gap-1.5 cursor-pointer"
                 >
@@ -338,7 +316,7 @@ export const CustomerBusinessesPage: React.FC = () => {
               {editingBiz ? 'Editar Estabelecimento' : 'Novo Estabelecimento'}
             </h3>
             <p className="text-xs text-slate-500 mb-4">
-              Informe os dados do seu comércio e configure os botões de ações externas.
+              Informe somente os dados cadastrais. Identidade visual, links e experiência ficam em “Configurar experiência”.
             </p>
 
             {urlError && (
@@ -447,84 +425,6 @@ export const CustomerBusinessesPage: React.FC = () => {
                 </div>
               </div>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                  URL da Logo
-                </label>
-                <input
-                  type="url"
-                  value={logoUrl}
-                  onChange={(e) => setLogoUrl(e.target.value)}
-                  placeholder="https://..."
-                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                />
-              </div>
-
-              {/* Seção de Ações Externas Configuráveis */}
-              <div className="pt-3 border-t border-slate-200">
-                <div className="mb-3">
-                  <h4 className="text-xs font-bold text-slate-900 uppercase tracking-wider">
-                    Ações Externas Configuráveis (Opcional)
-                  </h4>
-                  <p className="text-[11px] text-slate-500 mt-0.5 leading-relaxed">
-                    Preencha os links que você quer exibir ao cliente na Tag NFC. Campos vazios não gerarão botões.
-                  </p>
-                </div>
-
-                <div className="space-y-3 bg-slate-50 p-3.5 rounded-2xl border border-slate-200">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                      <UtensilsCrossed className="w-3.5 h-3.5 text-slate-700" />
-                      <span>Cardápio Online</span>
-                    </label>
-                    <input
-                      type="url"
-                      value={menuUrl}
-                      onChange={(e) => {
-                        setMenuUrl(e.target.value)
-                        setUrlError(null)
-                      }}
-                      placeholder="https://seurestaurante.com.br/cardapio"
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                      <GoogleIcon className="w-3.5 h-3.5" />
-                      <span>Link para avaliações do Google</span>
-                    </label>
-                    <input
-                      type="url"
-                      value={googleReviewsUrl}
-                      onChange={(e) => {
-                        setGoogleReviewsUrl(e.target.value)
-                        setUrlError(null)
-                      }}
-                      placeholder="https://search.google.com/local/writereview?placeid=..."
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 mb-1 flex items-center gap-1.5">
-                      <InstagramIcon className="w-3.5 h-3.5" colored={true} />
-                      <span>Instagram</span>
-                    </label>
-                    <input
-                      type="text"
-                      value={instagramUrl}
-                      onChange={(e) => {
-                        setInstagramUrl(e.target.value)
-                        setUrlError(null)
-                      }}
-                      placeholder="https://instagram.com/seuestabelecimento ou @seuestabelecimento"
-                      className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden"
-                    />
-                  </div>
-                </div>
-              </div>
-
               <div className="pt-2 flex justify-end gap-2">
                 <button
                   type="button"
@@ -548,6 +448,17 @@ export const CustomerBusinessesPage: React.FC = () => {
             </form>
           </div>
         </div>
+      )}
+      {configBusiness && (
+        <BusinessExperienceModal
+          business={configBusiness}
+          onClose={() => setConfigBusiness(null)}
+          onSaved={(saved) => {
+            setBusinesses((current) => current.map((item) => item.id === saved.id ? saved : item))
+            setSaveSuccessMsg(`Configuração de "${saved.name}" aplicada às tags vinculadas.`)
+            setTimeout(() => setSaveSuccessMsg(null), 4000)
+          }}
+        />
       )}
     </div>
   )

@@ -13,6 +13,7 @@ export const onRequest: PagesFunction<Env> = async (context) => {
 
   const publicRequest =
     url.pathname === '/api/auth' ||
+    (url.pathname === '/api/syncpay-webhook' && context.request.method === 'POST') ||
     (url.pathname === '/api/scans' && context.request.method === 'POST') ||
     (url.pathname === '/api/tags' &&
       context.request.method === 'GET' &&

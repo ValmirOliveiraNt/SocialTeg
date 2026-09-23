@@ -56,6 +56,7 @@ export const CustomerTagEditPage: React.FC = () => {
   const [tagLocation, setTagLocation] = useState('')
   const [selectedBusinessId, setSelectedBusinessId] = useState('')
   const [tagStatus, setTagStatus] = useState<TagStatus>('active')
+  const [configurationMode, setConfigurationMode] = useState<'business' | 'custom'>('business')
 
   // Ações Externas com Chave On / Off
   const [googleEnabled, setGoogleEnabled] = useState(true)
@@ -121,6 +122,7 @@ export const CustomerTagEditPage: React.FC = () => {
         const currentBizId = foundTag.business_id || (bizList[0]?.id || '')
         setSelectedBusinessId(currentBizId)
         setTagStatus(foundTag.status)
+        setConfigurationMode(foundTag.configuration_mode || 'business')
 
         api.scans.getAll(undefined, foundTag.id).then(setScans).catch(() => {})
 
@@ -311,6 +313,7 @@ export const CustomerTagEditPage: React.FC = () => {
       location: tagLocation.trim(),
       business_id: selectedBusinessId,
       status: tagStatus,
+      configuration_mode: configurationMode,
       updated_at: new Date().toISOString(),
     }
 
@@ -318,7 +321,7 @@ export const CustomerTagEditPage: React.FC = () => {
       await api.tags.save(updatedTag)
       setTag(updatedTag)
 
-      await api.destinations.save({
+      if (configurationMode === 'custom') await api.destinations.save({
         tag_id: tag.id,
         type: primaryType,
         target_url: primaryTargetUrl,
@@ -362,7 +365,9 @@ export const CustomerTagEditPage: React.FC = () => {
         action: 'UPDATE_TAG_CONFIG',
         entity_type: 'nfc_tag',
         entity_id: tag.id,
-        details: `Configurações e botões da Tag ${tag.name} (${tag.serial_number}) atualizados.`,
+        details: configurationMode === 'custom'
+          ? `Configuração própria da Tag ${tag.name} (${tag.serial_number}) atualizada.`
+          : `Tag ${tag.name} (${tag.serial_number}) vinculada à configuração do estabelecimento.`,
       })
 
       setSavedSuccess(true)
@@ -406,7 +411,7 @@ export const CustomerTagEditPage: React.FC = () => {
               </span>
             </h1>
             <p className="text-xs text-slate-500">
-              Configure quais ações e botões aparecerão quando o cliente encostar o celular nesta Tag NFC.
+              Defina o ponto físico e escolha entre o padrão do estabelecimento ou uma configuração exclusiva.
             </p>
           </div>
         </div>
@@ -442,7 +447,7 @@ export const CustomerTagEditPage: React.FC = () => {
       {savedSuccess && (
         <div className="p-4 bg-emerald-50 border border-emerald-200 rounded-2xl flex items-center gap-2 text-emerald-800 text-xs font-semibold animate-in fade-in">
           <Check className="w-4 h-4 text-emerald-600" />
-          <span>Configurações salvas com sucesso! As novas ações já estão ativas na Tag física.</span>
+          <span>{configurationMode === 'custom' ? 'Configuração própria salva e ativa nesta Tag.' : 'Esta Tag agora acompanha automaticamente a configuração do estabelecimento.'}</span>
         </div>
       )}
 
@@ -627,8 +632,22 @@ export const CustomerTagEditPage: React.FC = () => {
               </button>
             </div>
           </div>
+
+          <div className="mt-5 border-t border-slate-100 pt-5">
+            <div className="mb-3"><h3 className="text-sm font-black text-slate-900">Origem da configuração</h3><p className="mt-1 text-xs text-slate-500">O padrão do estabelecimento é recomendado. Use uma configuração própria somente para pontos com uma experiência diferente.</p></div>
+            <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
+              <button type="button" onClick={() => setConfigurationMode('business')} className={`rounded-2xl border-2 p-4 text-left transition ${configurationMode === 'business' ? 'border-blue-600 bg-blue-50' : 'border-slate-200 hover:border-slate-300'}`}><div className="flex items-center justify-between gap-3"><strong className="text-sm text-slate-900">Usar padrão do estabelecimento</strong>{configurationMode === 'business' && <Check className="h-4 w-4 text-blue-600" />}</div><p className="mt-1 text-xs leading-relaxed text-slate-500">Recebe automaticamente botões, links, textos e visual definidos em {businesses.find((item) => item.id === selectedBusinessId)?.name || 'seu estabelecimento'}.</p></button>
+              <button type="button" onClick={() => setConfigurationMode('custom')} className={`rounded-2xl border-2 p-4 text-left transition ${configurationMode === 'custom' ? 'border-violet-600 bg-violet-50' : 'border-slate-200 hover:border-slate-300'}`}><div className="flex items-center justify-between gap-3"><strong className="text-sm text-slate-900">Criar exceção para esta Tag</strong>{configurationMode === 'custom' && <Check className="h-4 w-4 text-violet-600" />}</div><p className="mt-1 text-xs leading-relaxed text-slate-500">Permite uma experiência diferente para balcão, mesa, recepção, campanha ou outro ponto específico.</p></button>
+            </div>
+          </div>
         </div>
 
+        {configurationMode === 'business' ? (
+          <div className="rounded-3xl border border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 p-6 shadow-sm">
+            <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"><div><span className="text-[10px] font-black uppercase tracking-[.18em] text-blue-600">Configuração compartilhada ativa</span><h2 className="mt-1 text-lg font-black text-slate-950">Esta Tag acompanha o estabelecimento</h2><p className="mt-2 max-w-2xl text-xs leading-relaxed text-slate-600">Qualquer alteração feita no estabelecimento será aplicada automaticamente nesta Tag e nas demais vinculadas, sem precisar editar uma por uma.</p></div><Link to="/dashboard/businesses" className="inline-flex shrink-0 items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-xs font-black text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700"><Sliders className="h-4 w-4" />Configurar estabelecimento</Link></div>
+          </div>
+        ) : (
+        <>
         {/* 2. Botões com Chaves On / Off */}
         <div className="bg-white rounded-3xl p-6 border border-slate-200 shadow-2xs">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-4 mb-4 border-b border-slate-100 gap-2">
@@ -1182,6 +1201,8 @@ export const CustomerTagEditPage: React.FC = () => {
             </div>
           )}
         </div>
+        </>
+        )}
 
         <div className="flex justify-end gap-3 pt-2">
           <Link

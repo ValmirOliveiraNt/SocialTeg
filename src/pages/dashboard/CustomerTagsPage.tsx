@@ -95,23 +95,26 @@ export const CustomerTagsPage: React.FC = () => {
   const [destinations, setDestinations] = useState<TagDestination[]>([])
   const [scans, setScans] = useState<TagScan[]>([])
   const [loading, setLoading] = useState(true)
+  const [loadWarning, setLoadWarning] = useState('')
 
   useEffect(() => {
     if (!currentUser) return
     setLoading(true)
-    Promise.all([
+    setLoadWarning('')
+    Promise.allSettled([
       api.tags.getAll(currentUser.id),
       api.businesses.getAll(currentUser.id),
       api.destinations.getAll(),
       api.scans.getAll(currentUser.id),
     ])
-      .then(([tagsData, bizData, destsData, scansData]) => {
-        setTags(tagsData || [])
-        setBusinesses(bizData || [])
-        setDestinations(destsData || [])
-        setScans(scansData || [])
+      .then(([tagsResult, bizResult, destinationsResult, scansResult]) => {
+        if (tagsResult.status === 'fulfilled') setTags(tagsResult.value || [])
+        if (bizResult.status === 'fulfilled') setBusinesses(bizResult.value || [])
+        if (destinationsResult.status === 'fulfilled') setDestinations(destinationsResult.value || [])
+        if (scansResult.status === 'fulfilled') setScans(scansResult.value || [])
+        const failed = [tagsResult, bizResult, destinationsResult, scansResult].filter((result) => result.status === 'rejected').length
+        if (failed) setLoadWarning('Algumas informações auxiliares não puderam ser atualizadas. As tags disponíveis continuam sendo exibidas.')
       })
-      .catch(() => {})
       .finally(() => setLoading(false))
   }, [currentUser, refreshTrigger])
 
@@ -241,6 +244,7 @@ export const CustomerTagsPage: React.FC = () => {
 
   return (
     <div className="space-y-6">
+      {loadWarning && <div role="status" className="rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-xs font-semibold text-amber-800">{loadWarning}</div>}
       {/* Top Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>

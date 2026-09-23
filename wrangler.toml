@@ -7,3 +7,9 @@ binding = "DB"
 database_name = "avaliatag-db"
 database_id = "cc0b095b-06cb-4e18-ae1d-18e40022fea6"
 
+# Segredos necessários em produção (configure com `wrangler pages secret put`):
+# SYNCPAY_CLIENT_ID
+# SYNCPAY_CLIENT_SECRET
+# SYNCPAY_PIX_AUTO_PLAN_TOKEN
+# SYNCPAY_WEBHOOK_SECRET
+# SYNCPAY_CASHIN_WEBHOOK_SECRET

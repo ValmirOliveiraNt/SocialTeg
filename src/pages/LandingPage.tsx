@@ -259,6 +259,9 @@ export const LandingPage: React.FC = () => {
     },
   ]
 
+  const advertisedMonthlyPrice = (plans.find((item) => item.id === 'plan-pro') || plans[0])?.price ?? 29.9
+  const advertisedMonthlyPriceLabel = advertisedMonthlyPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
+
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white antialiased">
       <Navbar />
@@ -1017,7 +1020,7 @@ export const LandingPage: React.FC = () => {
                       Reiniciar simulação
                     </button>
                     <Link
-                      to="/loja"
+                      to="/login"
                       className="text-xs font-bold text-blue-400 hover:text-blue-300 flex items-center gap-1"
                     >
                       <span>Quero usar o AvaliaTag</span>
@@ -1628,17 +1631,17 @@ export const LandingPage: React.FC = () => {
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
-                Planos & Aquisição
+                Assinatura simples
               </span>
               <h2 className="text-3xl sm:text-4xl font-extrabold text-slate-900 tracking-tight">
-                Simples e transparente para qualquer escala.
+                Tudo incluído por {advertisedMonthlyPriceLabel} por mês.
               </h2>
               <p className="text-sm sm:text-base text-slate-600">
-                Compre o display físico com acesso inicial gratuito ou desbloqueie recursos avançados para múltiplos caixas e estabelecimentos.
+                Receba a primeira placa padrão AvaliaTag em comodato, use todos os recursos e cancele quando quiser.
               </p>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-6xl mx-auto items-stretch">
+            <div className="grid grid-cols-1 gap-8 max-w-lg mx-auto items-stretch">
               {plans.map((plan) => (
                 <div
                   key={plan.id}
@@ -1688,7 +1691,7 @@ export const LandingPage: React.FC = () => {
                           : 'bg-slate-100 hover:bg-slate-200 text-slate-800'
                       }`}
                     >
-                      {plan.price === 0 ? 'Comprar Display Físico' : 'Assinar Plano Pro'}
+                      Assinar AvaliaTag
                     </Link>
                   </div>
                 </div>

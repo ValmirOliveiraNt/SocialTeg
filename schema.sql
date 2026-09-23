@@ -26,6 +26,12 @@ CREATE TABLE IF NOT EXISTS businesses (
   city TEXT,
   state TEXT,
   country TEXT DEFAULT 'Brasil',
+  menu_url TEXT,
+  google_reviews_url TEXT,
+  instagram_url TEXT,
+  default_destination_type TEXT NOT NULL DEFAULT 'google_review',
+  default_target_url TEXT,
+  default_destination_configuration TEXT NOT NULL DEFAULT '{}',
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (owner_id) REFERENCES users(id) ON DELETE CASCADE
@@ -70,6 +76,7 @@ CREATE TABLE IF NOT EXISTS nfc_tags (
   business_id TEXT,
   name TEXT NOT NULL,
   location TEXT,
+  configuration_mode TEXT NOT NULL DEFAULT 'business',
   activated_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
@@ -159,8 +166,23 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   provider_subscription_id TEXT,
   status TEXT NOT NULL DEFAULT 'active',
   started_at TEXT NOT NULL DEFAULT (datetime('now')),
+  current_period_start TEXT,
+  current_period_end TEXT,
+  next_billing_at TEXT,
+  grace_period_ends_at TEXT,
+  cancel_at_period_end INTEGER NOT NULL DEFAULT 0,
+  canceled_at TEXT,
+  ended_at TEXT,
+  payment_method_brand TEXT,
+  payment_method_last4 TEXT,
+  provider_authorization_data TEXT,
+  billing_method TEXT,
+  collection_status TEXT NOT NULL DEFAULT 'not_required',
+  collection_requested_at TEXT,
+  returned_at TEXT,
   expires_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,
   FOREIGN KEY (plan_id) REFERENCES plans(id)
 );
@@ -177,6 +199,39 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
+CREATE TABLE IF NOT EXISTS plate_orders (
+  id TEXT PRIMARY KEY,
+  user_id TEXT NOT NULL,
+  business_id TEXT NOT NULL,
+  mode TEXT NOT NULL,
+  quantity INTEGER NOT NULL,
+  has_custom_logo INTEGER NOT NULL DEFAULT 0,
+  ownership TEXT NOT NULL,
+  requires_return INTEGER NOT NULL DEFAULT 0,
+  digital_access TEXT NOT NULL,
+  fixed_destination_url TEXT,
+  unit_price REAL NOT NULL,
+  customization_total REAL NOT NULL DEFAULT 0,
+  total REAL NOT NULL,
+  status TEXT NOT NULL DEFAULT 'awaiting_payment',
+  payment_status TEXT NOT NULL DEFAULT 'pending',
+  provider_transaction_id TEXT,
+  pix_code TEXT,
+  tracking_code TEXT,
+  assigned_serials TEXT NOT NULL DEFAULT '[]',
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (business_id) REFERENCES businesses(id)
+);
+
+CREATE TABLE IF NOT EXISTS webhook_events (
+  id TEXT PRIMARY KEY,
+  provider TEXT NOT NULL,
+  event_type TEXT NOT NULL,
+  received_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
 CREATE INDEX IF NOT EXISTS idx_tags_public_id ON nfc_tags(public_id);
 CREATE INDEX IF NOT EXISTS idx_tags_serial ON nfc_tags(serial_number);
 CREATE INDEX IF NOT EXISTS idx_tags_owner ON nfc_tags(owner_id);
@@ -187,9 +242,9 @@ CREATE INDEX IF NOT EXISTS idx_destinations_tag ON tag_destinations(tag_id);
 
 INSERT OR IGNORE INTO plans (id, name, description, price, billing_interval, max_tags, max_businesses, analytics_enabled, advanced_analytics, popular, features, status)
 VALUES 
-('plan-starter', 'Plano Grátis Inicial', 'Ideal para começar a coletar avaliações no balcão', 0, 'monthly', 1, 1, 1, 0, 0, '["1 Tag NFC ativa", "Redirecionamento dinâmico", "Google Avaliações", "Métricas básicas"]', 'active'),
-('plan-pro', 'Plano Pro Negócios', 'Para comércios que desejam maximizar conversão com página personalizada', 29.9, 'monthly', 5, 3, 1, 1, 1, '["Até 5 Tags NFC", "Até 3 Estabelecimentos", "Página personalizada com logo", "Google, WhatsApp, Instagram", "Métricas avançadas", "Display imprimível"]', 'active'),
-('plan-enterprise', 'Plano Enterprise Redes & Franquias', 'Gestão corporativa centralizada para redes e franquias', 69.9, 'monthly', 999, 99, 1, 1, 0, '["Tags NFC ilimitadas", "Múltiplas filiais", "Relatórios unificados", "Suporte prioritário"]', 'active');
+('plan-starter', 'Plano legado', 'Plano descontinuado', 0, 'monthly', 1, 1, 1, 0, 0, '[]', 'inactive'),
+('plan-pro', 'AvaliaTag Completo', 'Placa inteligente em comodato e todos os recursos da plataforma', 29.9, 'monthly', 999, 1, 1, 1, 1, '["1 placa padrão AvaliaTag incluída", "NFC e QR Code ativos durante a assinatura", "Todos os destinos e modelos", "Telemetria e relatórios completos", "Cancelamento a qualquer momento", "Placas adicionais com preço por quantidade"]', 'active'),
+('plan-enterprise', 'Plano legado para redes', 'Plano descontinuado', 69.9, 'monthly', 999, 99, 1, 1, 0, '[]', 'inactive');
 
 INSERT OR IGNORE INTO products (id, name, description, image, price, stock, status, features)
 VALUES

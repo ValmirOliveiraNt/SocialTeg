@@ -5,12 +5,12 @@ export async function requireSession(request: Request, db: D1Database) {
   if (!token) throw new Response('Não autorizado', { status: 401 })
   const user = await db
     .prepare(
-      `SELECT u.id, u.role, u.status FROM sessions s
+      `SELECT u.id, u.name, u.email, u.phone, u.role, u.status FROM sessions s
     JOIN users u ON u.id = s.user_id
     WHERE s.token = ? AND datetime(s.expires_at) > datetime('now')`,
     )
     .bind(token)
-    .first<{ id: string; role: string; status: string }>()
+    .first<{ id: string; name: string; email: string; phone: string | null; role: string; status: string }>()
   if (!user) throw new Response('Sessão expirada', { status: 401 })
   if (user.status !== 'active')
     throw new Response('Conta indisponível', { status: 403 })

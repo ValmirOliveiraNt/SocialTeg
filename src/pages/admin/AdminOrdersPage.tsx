@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo } from 'react'
 import { Search, Filter } from 'lucide-react'
-import { Order, OrderStatus } from '../../types'
+import { Order, OrderStatus, PlateOrder } from '../../types'
 import { api } from '../../services/api'
 
 export const AdminOrdersPage: React.FC = () => {
@@ -8,9 +8,11 @@ export const AdminOrdersPage: React.FC = () => {
   const [statusFilter, setStatusFilter] = useState<string>('all')
   const [refreshTrigger, setRefreshTrigger] = useState(0)
   const [orders, setOrders] = useState<Order[]>([])
+  const [plateOrders, setPlateOrders] = useState<PlateOrder[]>([])
 
   useEffect(() => {
     api.orders.getAll().then(setOrders).catch(() => {})
+    api.plateOrders.getAll().then(setPlateOrders).catch(() => {})
   }, [refreshTrigger])
 
   const filteredOrders = useMemo(() => {
@@ -172,7 +174,8 @@ export const AdminOrdersPage: React.FC = () => {
           </table>
         </div>
       </div>
+
+      <section className="space-y-4"><div><h2 className="text-lg font-black text-slate-900">Pedidos de placas adicionais</h2><p className="text-xs text-slate-500">Produção, propriedade e entrega das placas solicitadas pelo painel do cliente.</p></div><div className="overflow-x-auto rounded-3xl border border-slate-200 bg-white"><table className="w-full min-w-[980px] text-left text-xs"><thead><tr className="border-b bg-slate-50 text-[10px] uppercase tracking-wider text-slate-500"><th className="p-4">Pedido</th><th className="p-4">Cliente / estabelecimento</th><th className="p-4">Modalidade</th><th className="p-4">Personalização</th><th className="p-4">Valor</th><th className="p-4">Pagamento</th><th className="p-4">Produção</th></tr></thead><tbody className="divide-y divide-slate-100">{plateOrders.length === 0 ? <tr><td colSpan={7} className="p-10 text-center text-slate-400">Nenhum pedido de placas.</td></tr> : plateOrders.map((order) => <tr key={order.id}><td className="p-4"><strong className="block text-slate-900">{order.id}</strong><span className="text-slate-400">{new Date(order.created_at).toLocaleDateString('pt-BR')}</span></td><td className="p-4"><strong className="block">{order.user_name}</strong><span className="text-slate-500">{order.business_name}</span></td><td className="p-4"><strong>{order.quantity} placa(s)</strong><span className="mt-1 block text-slate-500">{order.mode === 'subscription' ? 'Com assinatura' : 'Compra definitiva'}</span><span className="block text-slate-400">{order.requires_return ? 'Comodato / devolver' : 'Propriedade do cliente'}</span></td><td className="p-4">{order.has_custom_logo ? 'Com logo' : 'Padrão AvaliaTag'}</td><td className="p-4 font-black">{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</td><td className="p-4"><span className={`rounded-full px-2 py-1 text-[10px] font-bold ${order.payment_status === 'approved' ? 'bg-emerald-100 text-emerald-700' : 'bg-amber-100 text-amber-700'}`}>{order.payment_status === 'approved' ? 'Pago' : 'Aguardando Pix'}</span></td><td className="p-4"><select value={order.status} onChange={async (event) => { const status = event.target.value; await api.plateOrders.update({ id: order.id, status }); setPlateOrders((current) => current.map((item) => item.id === order.id ? { ...item, status } : item)) }} className="rounded-lg border border-slate-200 px-2 py-1.5 font-bold"><option value="awaiting_payment">Aguardando pagamento</option><option value="paid">Pago</option><option value="in_production">Em produção</option><option value="ready">Pronto</option><option value="shipped">Enviado</option><option value="delivered">Entregue</option><option value="tags_linked">Tags vinculadas</option><option value="cancelled">Cancelado</option></select></td></tr>)}</tbody></table></div></section>
     </div>
   )
 }
-

@@ -164,7 +164,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       await context.env.DB.prepare(`
         INSERT INTO users (id, name, email, phone, password_hash, role, status, plan_id, created_at, updated_at)
-        VALUES (?, ?, ?, ?, ?, 'customer', 'active', 'plan-starter', datetime('now'), datetime('now'))
+        VALUES (?, ?, ?, ?, ?, 'customer', 'active', 'plan-pro', datetime('now'), datetime('now'))
       `).bind(userId, name, email, data.phone || null, passwordRecord).run()
 
       const token = bytesToHex(crypto.getRandomValues(new Uint8Array(32)))

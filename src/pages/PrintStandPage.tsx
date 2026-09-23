@@ -9,8 +9,8 @@ import { getPublicTagUrl } from '../utils/url'
 
 type PrintTemplate = 'classic-logo' | 'navy-logo' | 'clean' | 'impact'
 const templates: Array<{ id: PrintTemplate; name: string; description: string; branded: boolean }> = [
-  { id: 'classic-logo', name: 'Clássico', description: 'Claro, elegante e com logomarca', branded: true },
-  { id: 'navy-logo', name: 'Azul Premium', description: 'Institucional com logomarca', branded: true },
+  { id: 'classic-logo', name: 'Clássico Personalizado', description: 'Logo do estabelecimento em destaque e AvaliaTag no rodapé', branded: true },
+  { id: 'navy-logo', name: 'Azul Premium Personalizado', description: 'Logo do estabelecimento em destaque e AvaliaTag no rodapé', branded: true },
   { id: 'clean', name: 'Essencial', description: 'Visual neutro sem logomarca', branded: false },
   { id: 'impact', name: 'Alto Impacto', description: 'Chamada forte sem logomarca', branded: false },
 ]
@@ -20,10 +20,24 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
   const navy = template === 'navy-logo'
   const impact = template === 'impact'
   const branded = template === 'classic-logo' || navy
+  const [failedLogo, setFailedLogo] = useState<string | null>(null)
+  const businessLogo = business?.logo_url?.trim() || ''
+  const hasBusinessLogo = Boolean(businessLogo && failedLogo !== businessLogo)
   const shell = navy ? 'bg-[#0B1F3B] text-white border-[#006CFF]' : impact ? 'bg-blue-600 text-white border-blue-800' : 'bg-white text-slate-900 border-slate-300'
   return (
     <article className={`w-full max-w-md mx-auto rounded-3xl shadow-xl p-7 border-2 text-center relative print:shadow-none print:rounded-none print:max-w-none print:w-[180mm] print:min-h-[260mm] print:flex print:flex-col print:justify-center ${shell}`} style={{ breakAfter: last ? 'auto' : 'page', pageBreakAfter: last ? 'auto' : 'always' }}>
-      {branded && <img src={navy ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'} alt="AvaliaTag" className="h-10 sm:h-12 w-auto mx-auto object-contain mb-5" />}
+      {branded && (hasBusinessLogo ? (
+        <div className={`mx-auto mb-5 flex h-20 min-w-36 max-w-[260px] items-center justify-center rounded-2xl border px-5 py-3 shadow-lg ${navy ? 'border-white/20 bg-white' : 'border-slate-200 bg-white'}`}>
+          <img
+            src={businessLogo}
+            alt={`Logo de ${business?.name || tag.name}`}
+            onError={() => setFailedLogo(businessLogo)}
+            className="max-h-14 max-w-full object-contain"
+          />
+        </div>
+      ) : (
+        <img src={navy ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'} alt="AvaliaTag" className="h-10 sm:h-12 w-auto mx-auto object-contain mb-5" />
+      ))}
       <div className={`inline-flex mx-auto items-center gap-2 px-3 py-1.5 rounded-full text-xs font-bold ${navy ? 'bg-white/10 text-blue-100' : impact ? 'bg-white/15 text-white' : 'bg-blue-50 text-blue-700'}`}><GoogleIcon className="w-5 h-5" /><span>Avalie sua experiência no Google</span></div>
       <div className="flex justify-center gap-1.5 my-4">{[1, 2, 3, 4, 5].map((star) => <Star key={star} className="w-7 h-7 fill-amber-400 text-amber-400" />)}</div>
       <h1 className="text-2xl font-black mb-1 leading-tight">{business?.name || tag.name}</h1>
@@ -35,7 +49,21 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
         <div className="flex items-center justify-center gap-2"><Radio className="w-4 h-4" /><span>Aproxime o celular da Tag NFC</span></div>
         <div className="flex items-center justify-center gap-2"><Smartphone className="w-4 h-4" /><span>Ou aponte a câmera para o QR Code</span></div>
       </div>
-      <div className={`mt-5 pt-3 border-t flex items-center ${branded ? 'justify-between' : 'justify-center'} text-[10px] ${navy || impact ? 'border-white/15 text-blue-100' : 'border-slate-200 text-slate-400'}`}><span className="font-mono">ID: {tag.public_id}</span>{branded && <span className="font-semibold">Aproximou. Avaliou. Cresceu.</span>}</div>
+      <div className={`mt-5 pt-3 border-t flex items-center ${branded ? 'justify-between' : 'justify-center'} gap-4 text-[10px] ${navy || impact ? 'border-white/15 text-blue-100' : 'border-slate-200 text-slate-400'}`}>
+        <span className="font-mono">ID: {tag.public_id}</span>
+        {branded && (hasBusinessLogo ? (
+          <div className="flex items-center gap-2">
+            <span className="font-medium opacity-80">Tecnologia</span>
+            <img
+              src={navy ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'}
+              alt="AvaliaTag"
+              className="h-5 w-auto max-w-28 object-contain"
+            />
+          </div>
+        ) : (
+          <span className="font-semibold">Aproximou. Avaliou. Cresceu.</span>
+        ))}
+      </div>
     </article>
   )
 }

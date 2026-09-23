@@ -3,7 +3,12 @@ interface Env {
 }
 import { requireAdmin, requireSession } from '../_lib/session'
 
-const publicFields = 'id, public_id, status, name, location, business_id'
+const publicFields = `t.id, t.public_id, t.status, t.name, t.location, t.business_id, t.configuration_mode,
+  b.name AS business_name, b.description AS business_description, b.logo_url AS business_logo_url,
+  b.cover_url AS business_cover_url, b.phone AS business_phone, b.website AS business_website,
+  b.address AS business_address, b.city AS business_city, b.state AS business_state,
+  b.country AS business_country, b.menu_url AS business_menu_url,
+  b.google_reviews_url AS business_google_reviews_url, b.instagram_url AS business_instagram_url`
 
 async function requireOwnedTag(request: Request, db: D1Database, id: string) {
   const user = await requireSession(request, db)
@@ -28,7 +33,70 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     }
 
     if (publicId) {
-      const tag = await context.env.DB.prepare(`SELECT ${publicFields} FROM nfc_tags WHERE lower(public_id) = lower(?)`).bind(publicId.trim()).first()
+      const tag: any = await context.env.DB.prepare(`
+        SELECT ${publicFields}, s.status AS subscription_status,
+          s.current_period_end AS access_until, s.grace_period_ends_at,
+          s.cancel_at_period_end
+        FROM nfc_tags t
+        LEFT JOIN businesses b ON b.id = t.business_id
+        LEFT JOIN subscriptions s ON s.id = (
+          SELECT s2.id FROM subscriptions s2 WHERE s2.user_id = t.owner_id
+          ORDER BY datetime(s2.created_at) DESC LIMIT 1
+        )
+        WHERE lower(t.public_id) = lower(?)`).bind(publicId.trim()).first()
+
+      if (tag) {
+        if (tag.business_id && tag.business_name) {
+          tag.business = {
+            id: tag.business_id,
+            name: tag.business_name,
+            description: tag.business_description || '',
+            logo_url: tag.business_logo_url || '',
+            cover_url: tag.business_cover_url || '',
+            phone: tag.business_phone || '',
+            website: tag.business_website || '',
+            address: tag.business_address || '',
+            city: tag.business_city || '',
+            state: tag.business_state || '',
+            country: tag.business_country || 'Brasil',
+            menu_url: tag.business_menu_url || '',
+            menuUrl: tag.business_menu_url || '',
+            google_reviews_url: tag.business_google_reviews_url || '',
+            googleReviewsUrl: tag.business_google_reviews_url || '',
+            instagram_url: tag.business_instagram_url || '',
+            instagramUrl: tag.business_instagram_url || '',
+          }
+        }
+        const now = Date.now()
+        const periodEnd = tag.access_until ? Date.parse(tag.access_until) : null
+        const graceEnd = tag.grace_period_ends_at ? Date.parse(tag.grace_period_ends_at) : null
+        if (!tag.subscription_status) {
+          // Existing customers are preserved until their first subscription is
+          // created. New activations must always create a subscription.
+          tag.access_status = 'legacy_active'
+        } else if ((tag.subscription_status === 'active' || tag.subscription_status === 'canceled' || tag.subscription_status === 'trialing') && (!periodEnd || periodEnd > now)) {
+          tag.access_status = 'active'
+        } else if (tag.subscription_status === 'past_due' && graceEnd && graceEnd > now) {
+          tag.access_status = 'past_due_grace'
+        } else {
+          tag.access_status = 'subscription_suspended'
+        }
+        delete tag.grace_period_ends_at
+        delete tag.cancel_at_period_end
+        delete tag.business_name
+        delete tag.business_description
+        delete tag.business_logo_url
+        delete tag.business_cover_url
+        delete tag.business_phone
+        delete tag.business_website
+        delete tag.business_address
+        delete tag.business_city
+        delete tag.business_state
+        delete tag.business_country
+        delete tag.business_menu_url
+        delete tag.business_google_reviews_url
+        delete tag.business_instagram_url
+      }
       return Response.json(tag || null)
     }
 
@@ -52,6 +120,7 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
     const { results } = await statement.all()
     return Response.json(results)
   } catch (err: any) {
+    if (err instanceof Response) return err
     return Response.json({ error: err.message }, { status: 500 })
   }
 }
@@ -70,8 +139,8 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
 
       statements.push(
         context.env.DB.prepare(`
-          INSERT INTO nfc_tags (id, public_id, serial_number, uid, product_id, status, owner_id, business_id, name, location, activated_at, created_at, updated_at)
-          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+          INSERT INTO nfc_tags (id, public_id, serial_number, uid, product_id, status, owner_id, business_id, name, location, configuration_mode, activated_at, created_at, updated_at)
+          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
         `).bind(
           id,
           publicId,
@@ -83,6 +152,7 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           data.business_id || null,
           data.name || ('Tag ' + cleanSerial),
           data.location || 'Estoque',
+          data.configuration_mode || 'business',
           data.activated_at || null
         )
       )
@@ -105,13 +175,13 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       if (!ids.length) return Response.json({ error: 'Nenhuma Tag válida informada' }, { status: 400 })
       const statements = ids.map((id: string, index: number) => {
         if (data.operation === 'return_to_stock') {
-          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = NULL, business_id = NULL, status = 'available', location = 'Estoque', activated_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id)
+          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = NULL, business_id = NULL, configuration_mode = 'business', status = 'available', location = 'Estoque', activated_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id)
         }
         if (data.operation === 'assign') {
           const location = data.location_mode === 'sequence'
             ? `${String(data.location_prefix || 'Ponto').trim()} ${String(Number(data.location_start || 1) + index).padStart(2, '0')}`
             : String(data.location || 'Ponto principal').trim()
-          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
+          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, configuration_mode = 'business', status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
         }
         throw new Error('Operação em lote inválida')
       })
@@ -136,6 +206,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
 
     const ownerProvided = Object.prototype.hasOwnProperty.call(data, 'owner_id')
     const businessProvided = Object.prototype.hasOwnProperty.call(data, 'business_id')
+    if (businessProvided && data.configuration_mode === undefined) data.configuration_mode = 'business'
     await context.env.DB.prepare(`
       UPDATE nfc_tags 
       SET name = COALESCE(?, name),
@@ -143,6 +214,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           status = COALESCE(?, status),
           owner_id = CASE WHEN ? THEN ? ELSE owner_id END,
           business_id = CASE WHEN ? THEN ? ELSE business_id END,
+          configuration_mode = COALESCE(?, configuration_mode),
           activated_at = COALESCE(?, activated_at),
           updated_at = datetime('now')
       WHERE id = ?
@@ -154,6 +226,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       data.owner_id ?? null,
       businessProvided ? 1 : 0,
       data.business_id ?? null,
+      data.configuration_mode ?? null,
       data.activated_at ?? null,
       data.id
     ).run()

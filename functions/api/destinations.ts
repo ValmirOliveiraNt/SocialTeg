@@ -14,18 +14,44 @@ async function requireTagAccess(request: Request, db: D1Database, tagId: string)
 export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   const tagId = url.searchParams.get('tag_id')
+  const scope = url.searchParams.get('scope')
 
   try {
     if (tagId) {
+      if (scope !== 'tag') {
+        const inherited: any = await context.env.DB.prepare(`
+          SELECT t.business_id, t.configuration_mode, b.default_destination_type, b.default_target_url,
+                 b.default_destination_configuration
+          FROM nfc_tags t
+          LEFT JOIN businesses b ON b.id = t.business_id
+          WHERE t.id = ?
+        `).bind(tagId).first()
+        if (inherited && inherited.configuration_mode !== 'custom' && inherited.business_id && inherited.default_target_url) {
+          return Response.json({
+            id: `business-${inherited.business_id}`,
+            tag_id: tagId,
+            type: inherited.default_destination_type || 'google_review',
+            title: 'Configuração do estabelecimento',
+            target_url: inherited.default_target_url,
+            configuration: inherited.default_destination_configuration || '{}',
+            is_active: 1,
+          })
+        }
+      }
       const dest = await context.env.DB.prepare('SELECT * FROM tag_destinations WHERE tag_id = ? AND is_active = 1 ORDER BY updated_at DESC LIMIT 1').bind(tagId).first()
       return Response.json(dest || null)
     }
 
     const user = await requireSession(context.request, context.env.DB)
-    if (user.role !== 'admin') return Response.json({ error: 'Acesso restrito' }, { status: 403 })
-    const { results } = await context.env.DB.prepare('SELECT * FROM tag_destinations').all()
+    const statement = user.role === 'admin'
+      ? context.env.DB.prepare('SELECT * FROM tag_destinations')
+      : context.env.DB.prepare(`SELECT d.* FROM tag_destinations d
+          JOIN nfc_tags t ON t.id = d.tag_id
+          WHERE t.owner_id = ?`).bind(user.id)
+    const { results } = await statement.all()
     return Response.json(results)
   } catch (err: any) {
+    if (err instanceof Response) return err
     return Response.json({ error: err.message }, { status: 500 })
   }
 }

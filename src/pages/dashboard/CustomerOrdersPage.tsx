@@ -1,18 +1,20 @@
 import React, { useState, useEffect } from 'react'
 import { Link } from 'react-router-dom'
 import { ShoppingBag, Truck, CheckCircle2, Radio } from 'lucide-react'
-import { Order } from '../../types'
+import { Order, PlateOrder } from '../../types'
 import { api } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
 
 export const CustomerOrdersPage: React.FC = () => {
   const { currentUser } = useAuth()
   const [orders, setOrders] = useState<Order[]>([])
+  const [plateOrders, setPlateOrders] = useState<PlateOrder[]>([])
   const [copiedCode, setCopiedCode] = useState<string | null>(null)
 
   useEffect(() => {
     if (!currentUser) return
     api.orders.getAll(currentUser.id).then(setOrders).catch(() => {})
+    api.plateOrders.getAll().then(setPlateOrders).catch(() => {})
   }, [currentUser])
 
   const copyToClipboard = (text: string) => {
@@ -42,7 +44,9 @@ export const CustomerOrdersPage: React.FC = () => {
         </Link>
       </div>
 
-      {orders.length === 0 ? (
+      {plateOrders.length > 0 && <section className="space-y-3"><h2 className="text-sm font-black text-slate-900">Solicitações de placas</h2>{plateOrders.map((order) => <div key={order.id} className="rounded-3xl border border-blue-200 bg-white p-5 shadow-sm"><div className="flex flex-wrap items-start justify-between gap-3"><div><strong className="block text-sm text-slate-900">{order.quantity} placa(s) · {order.business_name}</strong><span className="mt-1 block text-xs text-slate-500">{order.mode === 'subscription' ? 'Recursos completos por assinatura' : 'Compra definitiva sem mensalidade'} · {order.has_custom_logo ? 'Com logo' : 'Padrão AvaliaTag'}</span><span className="mt-1 block text-xs font-semibold text-slate-600">{order.requires_return ? 'Comodato — devolução obrigatória no cancelamento' : 'Propriedade do cliente — sem devolução'}</span></div><div className="text-right"><strong className="block text-base text-slate-950">{order.total.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })}</strong><span className="rounded-full bg-slate-100 px-2 py-1 text-[10px] font-bold text-slate-700">{order.status.replaceAll('_', ' ')}</span></div></div>{order.payment_status === 'pending' && order.pix_code && <button onClick={() => copyToClipboard(order.pix_code!)} className="mt-4 inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-xs font-bold text-white">Copiar Pix pendente</button>}</div>)}</section>}
+
+      {orders.length === 0 && plateOrders.length === 0 ? (
         <div className="bg-white rounded-3xl p-12 text-center border border-slate-200 shadow-2xs">
           <ShoppingBag className="w-12 h-12 text-slate-300 mx-auto mb-3" />
           <h3 className="font-bold text-slate-800 text-base mb-1">Nenhum pedido realizado ainda</h3>
@@ -153,4 +157,3 @@ export const CustomerOrdersPage: React.FC = () => {
     </div>
   )
 }
-

@@ -13,8 +13,13 @@ async function requireBusinessAccess(request: Request, db: D1Database, id: strin
 
 function mapBusiness(b: any) {
   if (!b) return null
+  let defaultConfiguration = b.default_destination_configuration || {}
+  if (typeof defaultConfiguration === 'string') {
+    try { defaultConfiguration = JSON.parse(defaultConfiguration) } catch { defaultConfiguration = {} }
+  }
   return {
     ...b,
+    default_destination_configuration: defaultConfiguration,
     menuUrl: b.menu_url || b.menuUrl || '',
     googleReviewsUrl: b.google_reviews_url || b.googleReviewsUrl || '',
     instagramUrl: b.instagram_url || b.instagramUrl || '',
@@ -28,8 +33,13 @@ export const onRequestGet: PagesFunction<Env> = async (context) => {
   const url = new URL(context.request.url)
   const ownerId = url.searchParams.get('owner_id')
   const id = url.searchParams.get('id')
+  const publicView = url.searchParams.get('public') === '1'
 
   try {
+    if (id && publicView) {
+      const biz = await context.env.DB.prepare(`SELECT id, name, description, logo_url, cover_url, phone, website, address, city, state, country, menu_url, google_reviews_url, instagram_url FROM businesses WHERE id = ?`).bind(id).first()
+      return Response.json(mapBusiness(biz))
+    }
     const user = await requireSession(context.request, context.env.DB)
     const admin = user.role === 'admin'
     if (id) {
@@ -62,20 +72,24 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const menuUrl = data.menuUrl || data.menu_url || null
     const googleReviewsUrl = data.googleReviewsUrl || data.google_reviews_url || null
     const instagramUrl = data.instagramUrl || data.instagram_url || null
+    const defaultConfiguration = typeof data.default_destination_configuration === 'string'
+      ? data.default_destination_configuration
+      : JSON.stringify(data.default_destination_configuration || {})
 
     await context.env.DB.prepare(`
       INSERT INTO businesses (
         id, owner_id, name, description, logo_url, cover_url, phone, email, website,
         address, city, state, country, menu_url, google_reviews_url, instagram_url,
+        default_destination_type, default_target_url, default_destination_configuration,
         created_at, updated_at
       )
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).bind(
       id,
       user.role === 'admin' ? data.owner_id : user.id,
       data.name,
       data.description || '',
-      data.logo_url || 'https://images.unsplash.com/photo-1554118811-1e0d58224f24?w=200&h=200&fit=crop',
+      data.logo_url || '',
       data.cover_url || null,
       data.phone || null,
       data.email || null,
@@ -86,7 +100,10 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       data.country || 'Brasil',
       menuUrl,
       googleReviewsUrl,
-      instagramUrl
+      instagramUrl,
+      data.default_destination_type || 'google_review',
+      data.default_target_url || null,
+      defaultConfiguration
     ).run()
 
     const created = await context.env.DB.prepare('SELECT * FROM businesses WHERE id = ?').bind(id).first()
@@ -107,6 +124,11 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     const menuUrl = data.menuUrl !== undefined ? data.menuUrl : (data.menu_url !== undefined ? data.menu_url : null)
     const googleReviewsUrl = data.googleReviewsUrl !== undefined ? data.googleReviewsUrl : (data.google_reviews_url !== undefined ? data.google_reviews_url : null)
     const instagramUrl = data.instagramUrl !== undefined ? data.instagramUrl : (data.instagram_url !== undefined ? data.instagram_url : null)
+    const defaultConfiguration = data.default_destination_configuration === undefined
+      ? null
+      : typeof data.default_destination_configuration === 'string'
+        ? data.default_destination_configuration
+        : JSON.stringify(data.default_destination_configuration || {})
 
     await context.env.DB.prepare(`
       UPDATE businesses
@@ -123,6 +145,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
           menu_url = COALESCE(?, menu_url),
           google_reviews_url = COALESCE(?, google_reviews_url),
           instagram_url = COALESCE(?, instagram_url),
+          default_destination_type = COALESCE(?, default_destination_type),
+          default_target_url = COALESCE(?, default_target_url),
+          default_destination_configuration = COALESCE(?, default_destination_configuration),
           updated_at = datetime('now')
       WHERE id = ?
     `).bind(
@@ -139,6 +164,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       menuUrl,
       googleReviewsUrl,
       instagramUrl,
+      data.default_destination_type ?? null,
+      data.default_target_url ?? null,
+      defaultConfiguration,
       data.id
     ).run()
 

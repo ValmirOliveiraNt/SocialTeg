@@ -7,6 +7,7 @@ import {
   Radio,
   ArrowRight,
   Sparkles,
+  MapPin,
 } from 'lucide-react'
 import { NFCTag, TagDestination, Business, DestinationConfig } from '../types'
 import { api } from '../services/api'
@@ -21,7 +22,7 @@ export const PublicTagRedirectPage: React.FC = () => {
   const [business, setBusiness] = useState<Business | null>(null)
   const [loading, setLoading] = useState(true)
   const [status, setStatus] = useState<
-    'found_active' | 'pending' | 'inactive' | 'blocked' | 'not_found'
+    'found_active' | 'pending' | 'inactive' | 'blocked' | 'subscription_suspended' | 'not_found'
   >('not_found')
   const [countdown, setCountdown] = useState(2)
   const [selectedRating, setSelectedRating] = useState<number>(5)
@@ -47,6 +48,12 @@ export const PublicTagRedirectPage: React.FC = () => {
 
       setTag(foundTag)
 
+      if (foundTag.access_status === 'subscription_suspended') {
+        setStatus('subscription_suspended')
+        setLoading(false)
+        return
+      }
+
       if (foundTag.status === 'blocked' || foundTag.status === 'lost') {
         setStatus('blocked')
         setLoading(false)
@@ -66,15 +73,15 @@ export const PublicTagRedirectPage: React.FC = () => {
       }
 
       let dest: TagDestination | null = null
-      let biz: Business | null = null
+      let biz: Business | null = foundTag.business || null
 
       try {
         dest = await api.destinations.getByTagId(foundTag.id)
       } catch {}
 
-      if (foundTag.business_id) {
+      if (foundTag.business_id && !biz) {
         try {
-          biz = await api.businesses.getById(foundTag.business_id)
+          biz = await api.businesses.getPublicById(foundTag.business_id)
         } catch {}
       }
 
@@ -182,6 +189,25 @@ export const PublicTagRedirectPage: React.FC = () => {
     )
   }
 
+  if (status === 'subscription_suspended') {
+    return (
+      <div className="min-h-screen bg-slate-950 flex items-center justify-center p-4">
+        <div className="w-full max-w-md rounded-3xl border border-slate-800 bg-slate-900 p-7 text-center text-white shadow-2xl">
+          <div className="mx-auto mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-slate-800 text-slate-300">
+            <ShieldAlert className="h-7 w-7" />
+          </div>
+          <h1 className="text-xl font-black">Canal temporariamente indisponível</h1>
+          <p className="mt-3 text-sm leading-relaxed text-slate-400">
+            Este canal digital está passando por uma atualização. Para atendimento, procure diretamente o estabelecimento.
+          </p>
+          <Link to="/" className="mt-6 inline-flex items-center gap-2 text-xs font-bold text-blue-400 hover:text-blue-300">
+            Conhecer a AvaliaTag <ArrowRight className="h-3.5 w-3.5" />
+          </Link>
+        </div>
+      </div>
+    )
+  }
+
   if (status === 'pending') {
     return (
       <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white flex flex-col items-center justify-center p-6 text-center">
@@ -263,38 +289,38 @@ export const PublicTagRedirectPage: React.FC = () => {
   const templateStyles = {
     classic: {
       page: 'bg-slate-100',
-      card: 'bg-white border-slate-200/80 rounded-3xl',
+      card: 'bg-white/95 border-white/80 rounded-[2rem]',
       body: 'text-center',
       title: 'text-slate-900',
       location: 'text-slate-500',
-      welcome: 'bg-slate-50 border-slate-200/80',
+      welcome: 'bg-slate-50/80 border-slate-200/80 shadow-[0_12px_30px_-24px_rgba(15,23,42,.45)]',
       welcomeTitle: 'text-slate-800',
       welcomeText: 'text-slate-600',
-      logo: 'bg-white border-white rounded-3xl',
+      logo: 'bg-white border-white/90 rounded-[2rem]',
       footer: 'text-slate-500',
     },
     modern: {
       page: 'bg-slate-950 bg-[radial-gradient(circle_at_top,#172554_0%,#020617_52%)]',
-      card: 'bg-slate-900 border-slate-700 rounded-[2rem]',
+      card: 'bg-slate-900/95 border-slate-700/80 rounded-[2.25rem]',
       body: 'text-center',
       title: 'text-white',
       location: 'text-slate-400',
-      welcome: 'bg-slate-800/80 border-slate-700',
+      welcome: 'bg-slate-800/80 border-slate-700 shadow-[0_16px_36px_-26px_rgba(0,0,0,.9)]',
       welcomeTitle: 'text-white',
       welcomeText: 'text-slate-300',
-      logo: 'bg-slate-900 border-slate-700 rounded-3xl',
+      logo: 'bg-white border-white/90 rounded-[2rem]',
       footer: 'text-slate-400',
     },
     elegant: {
       page: 'bg-[#f6f0e6] bg-[radial-gradient(circle_at_top,#fffaf0_0%,#ede2d0_68%)]',
-      card: 'bg-[#fffdf8] border-amber-200/80 rounded-[2.5rem]',
+      card: 'bg-[#fffdf8]/95 border-amber-200/70 rounded-[2.5rem]',
       body: 'text-center font-serif',
       title: 'text-stone-900 tracking-wide',
       location: 'text-stone-500',
-      welcome: 'bg-amber-50/70 border-amber-200/80',
+      welcome: 'bg-amber-50/70 border-amber-200/80 shadow-[0_14px_32px_-26px_rgba(120,53,15,.7)]',
       welcomeTitle: 'text-stone-900',
       welcomeText: 'text-stone-600',
-      logo: 'bg-[#fffdf8] border-amber-100 rounded-full',
+      logo: 'bg-white border-amber-100/80 rounded-[2rem]',
       footer: 'text-stone-500',
     },
   }[pageTemplate]
@@ -363,11 +389,11 @@ export const PublicTagRedirectPage: React.FC = () => {
   const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, customEnabled && customUrl].filter(Boolean).length > 1
 
   return (
-    <div className={`min-h-screen flex flex-col justify-between py-6 px-4 sm:px-6 ${templateStyles.page}`}>
+    <div className={`min-h-screen flex flex-col justify-between py-5 px-3 sm:py-8 sm:px-6 ${templateStyles.page}`}>
       <div className="max-w-md w-full mx-auto">
-        <div className={`shadow-2xl overflow-hidden border ${templateStyles.card}`}>
+        <div className={`group shadow-[0_30px_80px_-34px_rgba(15,23,42,.55)] overflow-hidden border transition-all duration-500 hover:-translate-y-1 hover:shadow-[0_38px_95px_-34px_rgba(15,23,42,.65)] ${templateStyles.card}`}>
           <div
-            className={`w-full relative flex items-center justify-center overflow-hidden ${pageTemplate === 'modern' ? 'h-40' : 'h-32'}`}
+            className="w-full relative flex h-44 sm:h-48 items-center justify-center overflow-hidden"
             style={{
               background:
                 pageTemplate === 'modern'
@@ -377,14 +403,23 @@ export const PublicTagRedirectPage: React.FC = () => {
                     : primaryColor,
             }}
           >
-            {business?.cover_url && (
-              <img
-                src={business.cover_url}
-                alt="Cover"
-                className="absolute inset-0 w-full h-full object-cover opacity-30"
-              />
+            {business?.cover_url ? (
+              <>
+                <img
+                  src={business.cover_url}
+                  alt={`Capa de ${business.name}`}
+                  className="absolute inset-0 h-full w-full scale-105 object-cover transition-transform duration-[1600ms] ease-out group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-slate-950/70 via-slate-950/15 to-black/15" />
+              </>
+            ) : (
+              <>
+                <div className="absolute -left-10 -top-16 h-44 w-44 rounded-full bg-white/20 blur-3xl motion-safe:animate-[pulse_6s_ease-in-out_infinite]" />
+                <div className="absolute -bottom-20 right-0 h-48 w-48 rounded-full bg-amber-300/20 blur-3xl motion-safe:animate-[pulse_7s_ease-in-out_infinite]" />
+                <div className="absolute inset-0 opacity-20 bg-[radial-gradient(circle_at_25%_20%,white_0,transparent_38%)]" />
+              </>
             )}
-            <div className="absolute top-3 right-3 bg-white/20 backdrop-blur-md px-2.5 py-1 rounded-full text-white text-[11px] font-medium flex items-center gap-1">
+            <div className="absolute top-4 right-4 bg-slate-950/25 border border-white/20 shadow-lg backdrop-blur-xl px-3 py-1.5 rounded-full text-white text-[10px] font-bold tracking-wide flex items-center gap-1.5">
               <Sparkles className="w-3 h-3 text-amber-300" />
               <span>
                 {hasMultipleActions
@@ -400,28 +435,29 @@ export const PublicTagRedirectPage: React.FC = () => {
             </div>
           </div>
 
-          <div className={`px-6 pb-8 pt-0 relative ${templateStyles.body}`}>
-            <div className="relative -mt-14 mb-4 flex justify-center">
-              <div className={`p-1.5 shadow-xl border-2 inline-block ${templateStyles.logo}`}>
+          <div className={`px-5 sm:px-7 pb-7 sm:pb-8 pt-0 relative ${templateStyles.body}`}>
+            <div className="relative -mt-[4.5rem] mb-4 flex justify-center">
+              <div className={`inline-block border p-1.5 shadow-[0_18px_45px_-14px_rgba(15,23,42,.5)] ring-4 ring-white/35 backdrop-blur-sm transition-transform duration-500 group-hover:-translate-y-1 ${templateStyles.logo}`}>
                 <BusinessAvatar
-                  src={destination?.configuration?.custom_logo || business?.logo_url}
+                  src={tag?.configuration_mode === 'custom' ? (destination?.configuration?.custom_logo || business?.logo_url) : business?.logo_url}
                   name={business?.name || tag?.name}
-                  size="lg"
+                  size="xl"
                 />
               </div>
             </div>
 
-            <h1 className={`text-xl font-black mb-1 ${templateStyles.title}`}>
+            <h1 className={`text-2xl font-black leading-tight mb-2 ${templateStyles.title}`}>
               {business?.name || tag?.name}
             </h1>
             {business?.city && (
-              <p className={`text-xs font-medium mb-4 ${templateStyles.location}`}>
-                {business.address}, {business.city} - {business.state}
+              <p className={`mx-auto mb-5 inline-flex max-w-full items-center justify-center gap-1.5 rounded-full bg-black/[0.04] px-3 py-1.5 text-[11px] font-semibold ${templateStyles.location}`}>
+                <MapPin className="h-3.5 w-3.5 shrink-0" />
+                <span className="truncate">{business.address}, {business.city} - {business.state}</span>
               </p>
             )}
 
             {/* Card de Boas-vindas */}
-            <div className={`border rounded-2xl p-4 mb-6 ${templateStyles.welcome}`}>
+            <div className={`border rounded-3xl p-5 mb-5 transition-transform duration-300 hover:-translate-y-0.5 ${templateStyles.welcome}`}>
               <h2 className={`text-sm font-bold mb-1 ${templateStyles.welcomeTitle}`}>
                 {destination?.configuration?.welcome_title ||
                   (googleEnabled && googleUrl

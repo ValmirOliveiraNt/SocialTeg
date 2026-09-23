@@ -138,12 +138,27 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
         !/^[0-9a-f-]{36}$/i.test(data.event_id))
     )
       return Response.json({ error: 'Evento inválido' }, { status: 400 })
-    const tag = await env.DB.prepare(
-      `SELECT t.id, d.type FROM nfc_tags t JOIN tag_destinations d ON d.tag_id = t.id
-      WHERE t.id = ? AND t.status = 'active' AND d.is_active = 1 ORDER BY d.updated_at DESC LIMIT 1`,
+    const tagRow = await env.DB.prepare(
+      `SELECT t.id, t.configuration_mode, b.default_destination_type, b.default_target_url,
+        (SELECT d.type FROM tag_destinations d WHERE d.tag_id = t.id AND d.is_active = 1 ORDER BY datetime(d.updated_at) DESC LIMIT 1) AS tag_destination_type,
+        (SELECT d.target_url FROM tag_destinations d WHERE d.tag_id = t.id AND d.is_active = 1 ORDER BY datetime(d.updated_at) DESC LIMIT 1) AS tag_target_url
+      FROM nfc_tags t
+      LEFT JOIN businesses b ON b.id = t.business_id
+      WHERE t.id = ? AND t.status = 'active'`,
     )
       .bind(data.tag_id)
-      .first<{ id: string; type: string }>()
+      .first<{
+        id: string
+        configuration_mode: string | null
+        default_destination_type: string | null
+        default_target_url: string | null
+        tag_destination_type: string | null
+        tag_target_url: string | null
+      }>()
+    const usesBusiness = tagRow?.configuration_mode !== 'custom' && Boolean(tagRow?.default_target_url)
+    const destinationType = usesBusiness ? tagRow?.default_destination_type : tagRow?.tag_destination_type
+    const targetUrl = usesBusiness ? tagRow?.default_target_url : tagRow?.tag_target_url
+    const tag = tagRow && destinationType && targetUrl ? { id: tagRow.id, type: destinationType } : null
     if (!tag)
       return Response.json(
         { error: 'Tag ou destino indisponível' },
