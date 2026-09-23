@@ -7,7 +7,6 @@ import {
   ShoppingBag,
   CreditCard,
   LogOut,
-  ExternalLink,
   Menu,
   X,
   Plus,
@@ -49,19 +48,6 @@ export const DashboardLayout: React.FC = () => {
 
   return (
     <div className="min-h-screen lg:h-screen lg:overflow-hidden bg-[#F4F7FB] flex flex-col selection:bg-blue-600 selection:text-white">
-      <div className="bg-[#0B1F3B] text-slate-300 text-xs py-1.5 px-4 flex items-center justify-between border-b border-blue-950">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-blue-400 animate-pulse"></span>
-          <span className="font-medium">Painel do Cliente • AvaliaTag SaaS</span>
-        </div>
-        <div className="flex items-center gap-3">
-          <Link to="/" className="text-[11px] text-slate-400 hover:text-white flex items-center gap-1">
-            <span>Página Inicial</span>
-            <ExternalLink className="w-3 h-3" />
-          </Link>
-        </div>
-      </div>
-
       <div className="flex-1 flex min-h-0">
         <aside className="hidden lg:flex w-64 bg-white border-r border-slate-200 flex-col p-4 h-full min-h-0 overflow-hidden">
           <div className="flex flex-1 min-h-0 flex-col gap-6">
