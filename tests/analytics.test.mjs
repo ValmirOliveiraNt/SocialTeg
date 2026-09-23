@@ -39,7 +39,7 @@ function setup() {
     INSERT INTO users(id,name,email,role,status) VALUES ('a','Ana','a@example.test','customer','active'), ('b','Bruno','b@example.test','customer','active'), ('blocked','Blocked','blocked@example.test','customer','blocked');
     INSERT INTO sessions VALUES ('a','a','2099-01-01'), ('b','b','2099-01-01'), ('admin','u-admin','2099-01-01'), ('blocked','blocked','2099-01-01'), ('expired','a','2000-01-01');
     INSERT INTO businesses(id,owner_id,name) VALUES ('ba','a','Loja A'), ('bb','b','Loja B');
-    INSERT INTO nfc_tags(id,public_id,serial_number,name,status,owner_id,business_id) VALUES ('ta','pa','sa','Tag A','active','a','ba'), ('tb','pb','sb','Tag B','active','b','bb'), ('silent','ps','ss','Sem movimento','active','a','ba');
+    INSERT INTO nfc_tags(id,public_id,serial_number,name,status,owner_id,business_id) VALUES ('ta','pa','sa','Tag A','active','a','ba'), ('tb','pb','sb','Tag B','active','b','bb'), ('silent','ps','ss','Sem movimento','active','a','ba'), ('stock','pstock','sstock','Em estoque','available',NULL,NULL);
     INSERT INTO tag_destinations(id,tag_id,title,target_url,type) VALUES ('da','ta','Site','https://example.test','website');`)
   const DB = {
     prepare(sql) {
@@ -165,6 +165,7 @@ test('admin revenue counts only approved noncancelled orders; active customers e
   assert.equal(data.admin.active_customers, 2)
   assert.equal(data.admin.awaiting_shipping, 1)
   assert.equal(data.admin.pending_orders, 1)
+  assert.equal(data.inventory.pending, 1)
   f.sqlite.close()
 })
 

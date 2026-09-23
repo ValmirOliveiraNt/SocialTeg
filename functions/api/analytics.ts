@@ -112,7 +112,7 @@ export const onRequestGet: PagesFunction<Env> = async ({ request, env }) => {
       ),
       statement(
         `SELECT COUNT(*) AS tags, COALESCE(SUM(t.status = 'active'),0) AS active,
-        COALESCE(SUM(t.status IN ('pending_activation','sold','reserved')),0) AS pending,
+        COALESCE(SUM(t.status IN ('available','pending_activation','sold','reserved')),0) AS pending,
         COALESCE(SUM(t.status = 'active' AND NOT EXISTS (SELECT 1 FROM tag_scans s WHERE s.tag_id = t.id
           AND julianday(s.scanned_at) >= julianday(?) AND julianday(s.scanned_at) <= julianday(?))),0) AS silent
         FROM nfc_tags t WHERE ${where}`,
