@@ -1,5 +1,6 @@
-import React from 'react'
-import { ExternalLink, Link2, MapPin, Phone, ShoppingBag, UtensilsCrossed, Video } from 'lucide-react'
+import React, { useState } from 'react'
+import { Copy, ExternalLink, Eye, EyeOff, Link2, MapPin, Phone, ShoppingBag, UtensilsCrossed, Video, Wifi, X } from 'lucide-react'
+import { QRCodeSVG } from 'qrcode.react'
 import { InstagramIcon } from './InstagramIcon'
 import { GoogleIcon } from './GoogleIcon'
 import { WhatsAppIcon } from './WhatsAppIcon'
@@ -21,6 +22,11 @@ export interface ExternalActionsProps {
   ifoodEnabled?: boolean
   youtubeUrl?: string | null
   youtubeEnabled?: boolean
+  wifiEnabled?: boolean
+  wifiSsid?: string | null
+  wifiPassword?: string | null
+  wifiSecurity?: 'WPA' | 'WEP' | 'nopass'
+  wifiHidden?: boolean
   customUrl?: string | null
   customLabel?: string | null
   customEnabled?: boolean
@@ -28,8 +34,10 @@ export interface ExternalActionsProps {
   className?: string
   fallbackUrl?: string | null
   fallbackType?: string | null
-  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'custom_url') => void
+  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'wifi' | 'custom_url') => void
 }
+
+const escapeWifiValue = (value: string) => value.replace(/([\\;,:"])/g, '\\$1')
 
 function checkValidUrl(url: string | null | undefined): boolean {
   if (!url) return false
@@ -60,6 +68,11 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   ifoodEnabled = false,
   youtubeUrl,
   youtubeEnabled = false,
+  wifiEnabled = false,
+  wifiSsid,
+  wifiPassword,
+  wifiSecurity = 'WPA',
+  wifiHidden = false,
   customUrl,
   customLabel,
   customEnabled = false,
@@ -69,6 +82,9 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   fallbackType,
   onAction,
 }) => {
+  const [wifiOpen, setWifiOpen] = useState(false)
+  const [showPassword, setShowPassword] = useState(false)
+  const [copied, setCopied] = useState<'network' | 'password' | null>(null)
   let cleanMenuUrl = checkValidUrl(menuUrl) ? menuUrl!.trim() : null
   let cleanGoogleUrl = checkValidUrl(googleReviewsUrl) ? googleReviewsUrl!.trim() : null
   let cleanInstagramUrl = checkValidUrl(instagramUrl) ? instagramUrl!.trim() : null
@@ -78,6 +94,15 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   const cleanIfoodUrl = checkValidUrl(ifoodUrl) ? ifoodUrl!.trim() : null
   const cleanYoutubeUrl = checkValidUrl(youtubeUrl) ? youtubeUrl!.trim() : null
   const cleanCustomUrl = checkValidUrl(customUrl) ? customUrl!.trim() : null
+  const cleanWifiSsid = wifiSsid?.trim() || ''
+  const cleanWifiPassword = wifiPassword || ''
+  const wifiQrValue = `WIFI:T:${wifiSecurity};S:${escapeWifiValue(cleanWifiSsid)};P:${escapeWifiValue(cleanWifiPassword)};H:${wifiHidden ? 'true' : 'false'};;`
+
+  const copyWifi = async (kind: 'network' | 'password', value: string) => {
+    await navigator.clipboard.writeText(value)
+    setCopied(kind)
+    window.setTimeout(() => setCopied(null), 1800)
+  }
 
   // Compatibilidade com tags legadas onde o destino direto estava em target_url
   if (
@@ -194,22 +219,25 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     if (action.enabled && action.url) actions.push({ ...action, url: action.url })
   })
 
-  if (actions.length === 0) {
+  const hasWifi = wifiEnabled && Boolean(cleanWifiSsid)
+
+  if (actions.length === 0 && !hasWifi) {
     return null
   }
 
   return (
+    <>
     <nav
       aria-label="Ações externas do estabelecimento"
       className={`w-full flex flex-col gap-2.5 ${className}`}
     >
       <div
         className={`grid gap-2.5 w-full ${
-          actions.length === 1
+          actions.length + (hasWifi ? 1 : 0) === 1
             ? 'grid-cols-1'
-            : actions.length === 2
+            : actions.length + (hasWifi ? 1 : 0) === 2
             ? 'grid-cols-1 sm:grid-cols-2'
-            : actions.length === 3
+            : actions.length + (hasWifi ? 1 : 0) === 3
             ? 'grid-cols-1 sm:grid-cols-3'
             : 'grid-cols-1 sm:grid-cols-2'
         }`}
@@ -230,7 +258,34 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
             <ExternalLink className="w-3.5 h-3.5 opacity-75 shrink-0" aria-hidden="true" />
           </a>
         ))}
+        {hasWifi && (
+          <button
+            type="button"
+            onClick={() => { setWifiOpen(true); onAction?.('wifi') }}
+            className="min-h-[48px] rounded-2xl border border-sky-600 bg-sky-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-sky-700 hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-sky-500 focus-visible:ring-offset-2 sm:text-sm"
+          >
+            <span className="flex items-center justify-center gap-2"><Wifi className="h-4 w-4" aria-hidden="true" />Conectar ao Wi-Fi</span>
+          </button>
+        )}
       </div>
     </nav>
+    {wifiOpen && (
+      <div className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm" onMouseDown={(event) => { if (event.target === event.currentTarget) setWifiOpen(false) }}>
+        <section role="dialog" aria-modal="true" aria-labelledby="wifi-dialog-title" className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-2xl sm:p-6">
+          <div className="flex items-start justify-between gap-4">
+            <div><span className="inline-flex rounded-xl bg-sky-50 p-2 text-sky-700"><Wifi className="h-5 w-5" /></span><h2 id="wifi-dialog-title" className="mt-3 text-lg font-black text-slate-900">Wi-Fi do estabelecimento</h2><p className="mt-1 text-xs leading-5 text-slate-500">Copie os dados neste aparelho ou mostre o QR Code para outro celular.</p></div>
+            <button type="button" aria-label="Fechar informações do Wi-Fi" onClick={() => setWifiOpen(false)} className="rounded-xl p-2 text-slate-400 hover:bg-slate-100 hover:text-slate-700"><X className="h-5 w-5" /></button>
+          </div>
+          <div className="mx-auto mt-5 w-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-sm"><QRCodeSVG value={wifiQrValue} size={180} level="M" includeMargin /></div>
+          <p className="mt-2 text-center text-[10px] leading-4 text-slate-400">Abra a câmera de outro celular e aponte para o código para entrar na rede.</p>
+          <div className="mt-5 space-y-3">
+            <div className="rounded-2xl bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Nome da rede</span><div className="mt-1 flex items-center justify-between gap-3"><strong className="min-w-0 truncate text-sm text-slate-900">{cleanWifiSsid}</strong><button type="button" onClick={() => void copyWifi('network', cleanWifiSsid)} className="shrink-0 rounded-lg p-2 text-sky-700 hover:bg-sky-100" aria-label="Copiar nome da rede"><Copy className="h-4 w-4" /></button></div>{copied === 'network' && <span className="text-[10px] font-semibold text-emerald-600">Nome copiado</span>}</div>
+            {wifiSecurity !== 'nopass' && <div className="rounded-2xl bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Senha</span><div className="mt-1 flex items-center justify-between gap-3"><strong className="min-w-0 break-all font-mono text-sm text-slate-900">{showPassword ? cleanWifiPassword : '••••••••••••'}</strong><div className="flex shrink-0"><button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-200" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button><button type="button" onClick={() => void copyWifi('password', cleanWifiPassword)} className="rounded-lg p-2 text-sky-700 hover:bg-sky-100" aria-label="Copiar senha"><Copy className="h-4 w-4" /></button></div></div>{copied === 'password' && <span className="text-[10px] font-semibold text-emerald-600">Senha copiada</span>}</div>}
+          </div>
+          <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10px] leading-4 text-amber-800">Use preferencialmente uma rede de convidados. A senha ficará disponível para quem acessar esta página.</div>
+        </section>
+      </div>
+    )}
+    </>
   )
 }

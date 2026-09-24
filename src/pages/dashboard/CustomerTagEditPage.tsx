@@ -23,6 +23,7 @@ import {
   Video,
   Link2,
   ShoppingBag,
+  Wifi,
 } from 'lucide-react'
 import { InstagramIcon } from '../../components/InstagramIcon'
 import { WhatsAppIcon } from '../../components/WhatsAppIcon'
@@ -80,6 +81,11 @@ export const CustomerTagEditPage: React.FC = () => {
   const [ifoodUrl, setIfoodUrl] = useState('')
   const [youtubeEnabled, setYoutubeEnabled] = useState(false)
   const [youtubeUrl, setYoutubeUrl] = useState('')
+  const [wifiEnabled, setWifiEnabled] = useState(false)
+  const [wifiSsid, setWifiSsid] = useState('')
+  const [wifiPassword, setWifiPassword] = useState('')
+  const [wifiSecurity, setWifiSecurity] = useState<'WPA' | 'WEP' | 'nopass'>('WPA')
+  const [wifiHidden, setWifiHidden] = useState(false)
   const [customEnabled, setCustomEnabled] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [customLabel, setCustomLabel] = useState('Saiba mais')
@@ -196,6 +202,11 @@ export const CustomerTagEditPage: React.FC = () => {
         setIfoodEnabled(Boolean(cfg.ifood_enabled))
         setYoutubeUrl(cfg.youtube_url || '')
         setYoutubeEnabled(Boolean(cfg.youtube_enabled))
+        setWifiEnabled(Boolean(cfg.wifi_enabled))
+        setWifiSsid(cfg.wifi_ssid || '')
+        setWifiPassword(cfg.wifi_password || '')
+        setWifiSecurity(cfg.wifi_security || 'WPA')
+        setWifiHidden(Boolean(cfg.wifi_hidden))
         setCustomUrl(cfg.custom_url || '')
         setCustomLabel(cfg.custom_label || 'Saiba mais')
         setCustomEnabled(Boolean(cfg.custom_enabled))
@@ -234,6 +245,17 @@ export const CustomerTagEditPage: React.FC = () => {
     if (!tag) return
     setErrorMessage(null)
     setIsSaving(true)
+
+    if (wifiEnabled && !wifiSsid.trim()) {
+      setErrorMessage('Informe o nome da rede Wi-Fi para ativar esse botão.')
+      setIsSaving(false)
+      return
+    }
+    if (wifiEnabled && wifiSecurity !== 'nopass' && !wifiPassword) {
+      setErrorMessage('Informe a senha da rede Wi-Fi ou selecione “Sem senha”.')
+      setIsSaving(false)
+      return
+    }
 
     // Formatações
     const cleanGoogle = googleUrl.trim()
@@ -346,10 +368,15 @@ export const CustomerTagEditPage: React.FC = () => {
           ifood_url: cleanIfood,
           youtube_enabled: youtubeEnabled,
           youtube_url: cleanYoutube,
+          wifi_enabled: wifiEnabled,
+          wifi_ssid: wifiSsid.trim(),
+          wifi_password: wifiSecurity === 'nopass' ? '' : wifiPassword,
+          wifi_security: wifiSecurity,
+          wifi_hidden: wifiHidden,
           custom_enabled: customEnabled,
           custom_url: cleanCustom,
           custom_label: customLabel.trim() || 'Saiba mais',
-          direct_redirect: directRedirect,
+          direct_redirect: wifiEnabled ? false : directRedirect,
           page_template: pageTemplate,
           welcome_title: welcomeTitle,
           welcome_message: welcomeMessage,
@@ -379,7 +406,7 @@ export const CustomerTagEditPage: React.FC = () => {
     }
   }
 
-  const activeButtonsCount = [googleEnabled, instagramEnabled, whatsappEnabled, menuEnabled, contactEnabled, addressEnabled, ifoodEnabled, youtubeEnabled, customEnabled].filter(Boolean).length
+  const activeButtonsCount = [googleEnabled, instagramEnabled, whatsappEnabled, menuEnabled, contactEnabled, addressEnabled, ifoodEnabled, youtubeEnabled, wifiEnabled, customEnabled].filter(Boolean).length
 
   const additionalChannels = [
     { id: 'contact', title: 'Contato', description: 'Telefone, e-mail ou página de atendimento', placeholder: 'contato@empresa.com ou (84) 99999-9999', enabled: contactEnabled, setEnabled: setContactEnabled, value: contactValue, setValue: setContactValue, icon: Phone, color: 'text-cyan-700 bg-cyan-50' },
@@ -980,6 +1007,10 @@ export const CustomerTagEditPage: React.FC = () => {
                   </div>
                 )
               })}
+              <div className={`rounded-2xl border p-4 transition ${wifiEnabled ? 'border-sky-200 bg-white shadow-2xs' : 'border-slate-200 bg-slate-50/70'}`}>
+                <div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3 min-w-0"><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-sky-50 text-sky-700"><Wifi className="w-4 h-4" /></div><div><h4 className="text-xs font-bold text-slate-900">Wi-Fi para clientes</h4><p className="text-[11px] leading-relaxed text-slate-500 mt-0.5">Exibe QR Code e permite copiar rede e senha</p></div></div><button type="button" role="switch" aria-checked={wifiEnabled} onClick={() => { const next = !wifiEnabled; setWifiEnabled(next); if (next) setDirectRedirect(false) }} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-sky-600 focus:ring-offset-2 ${wifiEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}><span className={`pointer-events-none inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow-sm transition-transform ${wifiEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} /></button></div>
+                {wifiEnabled && <div className="mt-3 pt-3 border-t border-slate-100 space-y-2"><input type="text" value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)} placeholder="Nome da rede (SSID)" className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500" /><input type="password" autoComplete="new-password" value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} placeholder="Senha da rede" disabled={wifiSecurity === 'nopass'} className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl disabled:bg-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500" /><div className="grid grid-cols-2 gap-2"><select value={wifiSecurity} onChange={(event) => setWifiSecurity(event.target.value as 'WPA' | 'WEP' | 'nopass')} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"><input type="checkbox" checked={wifiHidden} onChange={(event) => setWifiHidden(event.target.checked)} />Rede oculta</label></div><p className="text-[10px] leading-4 text-amber-700">Use preferencialmente uma rede separada para visitantes.</p></div>}
+              </div>
             </div>
           </div>
 
@@ -1020,6 +1051,11 @@ export const CustomerTagEditPage: React.FC = () => {
               ifoodEnabled={ifoodEnabled}
               youtubeUrl={youtubeUrl.startsWith('http') ? youtubeUrl : youtubeUrl ? `https://${youtubeUrl}` : ''}
               youtubeEnabled={youtubeEnabled}
+              wifiEnabled={wifiEnabled}
+              wifiSsid={wifiSsid}
+              wifiPassword={wifiPassword}
+              wifiSecurity={wifiSecurity}
+              wifiHidden={wifiHidden}
               customUrl={customUrl.startsWith('http') ? customUrl : customUrl ? `https://${customUrl}` : ''}
               customLabel={customLabel}
               customEnabled={customEnabled}
@@ -1056,17 +1092,20 @@ export const CustomerTagEditPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setDirectRedirect(true)}
+              disabled={wifiEnabled}
               className={`p-4 rounded-2xl border-2 text-left transition cursor-pointer ${
                 directRedirect
                   ? 'border-blue-600 bg-blue-50/50 shadow-2xs'
-                  : 'border-slate-200 hover:border-slate-300'
+                  : wifiEnabled
+                    ? 'border-slate-200 bg-slate-100 opacity-55 cursor-not-allowed'
+                    : 'border-slate-200 hover:border-slate-300'
               }`}
             >
               <div className="font-bold text-xs text-slate-900 mb-1">
                 Redirecionamento Direto Instantâneo
               </div>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                Abre diretamente o primeiro link ativado sem passar pela página de apresentação.
+                {wifiEnabled ? 'Indisponível enquanto o botão de Wi-Fi estiver ativo.' : 'Abre diretamente o primeiro link ativado sem passar pela página de apresentação.'}
               </p>
             </button>
           </div>

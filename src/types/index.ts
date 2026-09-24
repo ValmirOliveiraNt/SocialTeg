@@ -66,6 +66,7 @@ export type DestinationType =
   | 'address'
   | 'ifood'
   | 'youtube'
+  | 'wifi'
   | 'custom_url'
 
 export interface DestinationConfig {
@@ -95,6 +96,11 @@ export interface DestinationConfig {
   ifood_enabled?: boolean
   youtube_url?: string
   youtube_enabled?: boolean
+  wifi_enabled?: boolean
+  wifi_ssid?: string
+  wifi_password?: string
+  wifi_security?: 'WPA' | 'WEP' | 'nopass'
+  wifi_hidden?: boolean
   custom_url?: string
   custom_label?: string
   custom_enabled?: boolean

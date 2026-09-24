@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react'
-import { Plus, MapPin, Phone, Mail, Edit2, Trash2, X, AlertCircle, CheckCircle2, UtensilsCrossed, SlidersHorizontal } from 'lucide-react'
+import { Plus, MapPin, Phone, Mail, Edit2, Trash2, X, AlertCircle, CheckCircle2, UtensilsCrossed, SlidersHorizontal, Wifi } from 'lucide-react'
 import { Business, NFCTag } from '../../types'
 import { api } from '../../services/api'
 import { useAuth } from '../../context/AuthContext'
@@ -201,6 +201,7 @@ export const CustomerBusinessesPage: React.FC = () => {
           const hasMenu = Boolean(cfg.menu_enabled && cfg.menu_url)
           const hasGoogle = Boolean(cfg.google_enabled && cfg.google_url)
           const hasInsta = Boolean(cfg.instagram_enabled && (cfg.instagram_url || cfg.instagram_handle))
+          const hasWifi = Boolean(cfg.wifi_enabled && cfg.wifi_ssid)
 
           return (
             <div
@@ -246,7 +247,13 @@ export const CustomerBusinessesPage: React.FC = () => {
                       <span>Instagram</span>
                     </span>
                   )}
-                  {!hasMenu && !hasGoogle && !hasInsta && (
+                  {hasWifi && (
+                    <span className="inline-flex items-center gap-1 text-[11px] font-semibold bg-sky-50 text-sky-700 border border-sky-200 px-2 py-0.5 rounded-lg">
+                      <Wifi className="w-3 h-3" />
+                      <span>Wi-Fi</span>
+                    </span>
+                  )}
+                  {!hasMenu && !hasGoogle && !hasInsta && !hasWifi && (
                     <span className="text-[11px] text-slate-400 italic">
                       Nenhuma ação externa configurada
                     </span>

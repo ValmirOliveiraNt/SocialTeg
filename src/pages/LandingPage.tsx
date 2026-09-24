@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react'
+import React, { useState, useEffect, useRef } from 'react'
 import { Link } from 'react-router-dom'
 import {
   Radio,
@@ -41,6 +41,7 @@ import { Plan } from '../types'
 import { api } from '../services/api'
 
 export const LandingPage: React.FC = () => {
+  const heroRef = useRef<HTMLElement | null>(null)
   const [plans, setPlans] = useState<Plan[]>([])
   const [activeFaq, setActiveFaq] = useState<number | null>(0)
   
@@ -130,6 +131,50 @@ export const LandingPage: React.FC = () => {
       })
       .catch(() => {})
   }, [])
+
+  useEffect(() => {
+    const revealElements = Array.from(document.querySelectorAll<HTMLElement>('[data-landing-reveal]'))
+    const reduceMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+    if (reduceMotion || !('IntersectionObserver' in window)) {
+      revealElements.forEach((element) => element.classList.add('is-visible'))
+      return
+    }
+
+    document.querySelector<HTMLElement>('.landing-page')?.classList.add('is-motion-ready')
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (!entry.isIntersecting) return
+          entry.target.classList.add('is-visible')
+          observer.unobserve(entry.target)
+        })
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -8% 0px' },
+    )
+
+    revealElements.forEach((element) => observer.observe(element))
+    return () => observer.disconnect()
+  }, [])
+
+  const handleHeroPointerMove = (event: React.PointerEvent<HTMLElement>) => {
+    if (event.pointerType === 'touch') return
+    const bounds = event.currentTarget.getBoundingClientRect()
+    const x = (event.clientX - bounds.left) / bounds.width - 0.5
+    const y = (event.clientY - bounds.top) / bounds.height - 0.5
+    event.currentTarget.style.setProperty('--hero-rotate-x', `${(y * -2.5).toFixed(2)}deg`)
+    event.currentTarget.style.setProperty('--hero-rotate-y', `${(x * 3.5).toFixed(2)}deg`)
+    event.currentTarget.style.setProperty('--hero-shift-x', `${(x * 7).toFixed(2)}px`)
+    event.currentTarget.style.setProperty('--hero-shift-y', `${(y * 7).toFixed(2)}px`)
+  }
+
+  const resetHeroPointer = () => {
+    heroRef.current?.style.setProperty('--hero-rotate-x', '0deg')
+    heroRef.current?.style.setProperty('--hero-rotate-y', '0deg')
+    heroRef.current?.style.setProperty('--hero-shift-x', '0px')
+    heroRef.current?.style.setProperty('--hero-shift-y', '0px')
+  }
 
   // Dispara a animação da simulação interativa
   const handleStartSimulation = () => {
@@ -263,14 +308,19 @@ export const LandingPage: React.FC = () => {
   const advertisedMonthlyPriceLabel = advertisedMonthlyPrice.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white antialiased">
+    <div className="landing-page min-h-screen bg-slate-50 text-slate-900 flex flex-col selection:bg-blue-600 selection:text-white antialiased">
       <Navbar />
 
       <main className="flex-1">
         {/* =========================================================================
             1. HERO SECTION
            ========================================================================= */}
-        <section className="relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-gradient-to-b from-white via-slate-50 to-slate-100 border-b border-slate-200/80">
+        <section
+          ref={heroRef}
+          onPointerMove={handleHeroPointerMove}
+          onPointerLeave={resetHeroPointer}
+          className="landing-hero relative overflow-hidden pt-12 pb-20 lg:pt-20 lg:pb-28 bg-gradient-to-b from-white via-slate-50 to-slate-100 border-b border-slate-200/80"
+        >
           {/* Fundo com grade sutil e orbs de iluminação suave */}
           <div className="absolute inset-0 bg-[radial-gradient(#2563eb_1px,transparent_1px)] [background-size:28px_28px] opacity-[0.18] pointer-events-none"></div>
           <div className="absolute top-1/4 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[700px] h-[350px] bg-blue-400/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -280,7 +330,7 @@ export const LandingPage: React.FC = () => {
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 lg:gap-8 items-center">
               
               {/* Coluna de Texto & Proposta de Valor */}
-              <div className="lg:col-span-7 space-y-6 text-center lg:text-left">
+              <div className="landing-hero-copy lg:col-span-7 space-y-6 text-center lg:text-left">
                 {/* Badge Superior */}
                 <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-50 border border-blue-200/80 text-blue-700 text-xs font-semibold shadow-xs">
                   <Star className="w-3.5 h-3.5 fill-amber-400 text-amber-400" />
@@ -304,7 +354,7 @@ export const LandingPage: React.FC = () => {
                 <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3.5 pt-2">
                   <Link
                     to="/loja"
-                    className="w-full sm:w-auto px-7 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 group cursor-pointer"
+                    className="landing-primary-cta w-full sm:w-auto px-7 py-4 bg-blue-600 hover:bg-blue-700 text-white font-bold text-base rounded-2xl shadow-lg shadow-blue-500/25 hover:shadow-xl hover:shadow-blue-500/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 group cursor-pointer"
                   >
                     <span>Quero receber mais avaliações no Google</span>
                     <ArrowRight className="w-4 h-4 transition-transform group-hover:translate-x-1" />
@@ -335,7 +385,7 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* Coluna Visual: Composição de Produto & Smartphone */}
-              <div className="lg:col-span-5 flex justify-center relative">
+              <div className="landing-hero-visual lg:col-span-5 flex justify-center relative">
                 <img
                   src="/brand/hero-nfc-applications-1600x900.png"
                   alt="Aplicações AvaliaTag em tag NFC e placa de balcão"
@@ -455,7 +505,7 @@ export const LandingPage: React.FC = () => {
             2. SEÇÃO "O PROBLEMA"
            ========================================================================= */}
         <section id="problema" className="py-20 lg:py-24 bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             {/* Cabeçalho da Seção */}
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
@@ -472,7 +522,7 @@ export const LandingPage: React.FC = () => {
             {/* 3 Cards Modernos Numerados */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
               {/* Card 01 */}
-              <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
+              <div className="landing-card p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <span className="font-mono text-3xl font-black text-slate-300 group-hover:text-blue-600 transition-colors">
@@ -495,7 +545,7 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* Card 02 */}
-              <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
+              <div className="landing-card p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <span className="font-mono text-3xl font-black text-slate-300 group-hover:text-blue-600 transition-colors">
@@ -518,7 +568,7 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* Card 03 */}
-              <div className="p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
+              <div className="landing-card p-8 rounded-3xl bg-slate-50 border border-slate-200/90 hover:border-blue-300 hover:shadow-lg hover:shadow-slate-100 transition-all duration-300 group flex flex-col justify-between">
                 <div>
                   <div className="flex items-center justify-between mb-6">
                     <span className="font-mono text-3xl font-black text-slate-300 group-hover:text-blue-600 transition-colors">
@@ -551,7 +601,7 @@ export const LandingPage: React.FC = () => {
           <div className="absolute -top-24 -left-24 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute -bottom-24 -right-24 w-96 h-96 bg-indigo-500/10 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-12 items-center">
               
               {/* Texto explicativo institucional */}
@@ -738,7 +788,7 @@ export const LandingPage: React.FC = () => {
             4. SEÇÃO "POR QUE GOOGLE?" (JORNADA DO CONSUMIDOR)
            ========================================================================= */}
         <section id="jornada" className="py-20 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Comportamento do Consumidor Moderno
@@ -752,7 +802,7 @@ export const LandingPage: React.FC = () => {
             </div>
 
             {/* Timeline da Jornada do Consumidor */}
-            <div className="grid grid-cols-1 md:grid-cols-5 gap-4 relative">
+            <div className="landing-journey grid grid-cols-1 md:grid-cols-5 gap-4 relative">
               {[
                 {
                   step: '01',
@@ -789,7 +839,7 @@ export const LandingPage: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className="p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between"
+                    className="landing-card p-6 rounded-2xl bg-white border border-slate-200 shadow-xs hover:border-blue-300 hover:shadow-md transition-all flex flex-col justify-between"
                   >
                     <div>
                       <div className="flex items-center justify-between mb-4">
@@ -812,7 +862,7 @@ export const LandingPage: React.FC = () => {
             5. SEÇÃO "COMO FUNCIONA"
            ========================================================================= */}
         <section id="como-funciona" className="py-20 lg:py-24 bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Experiência Sem Atrito
@@ -828,7 +878,7 @@ export const LandingPage: React.FC = () => {
             {/* 3 Passos Principais com Grande Destaque Visual */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 relative">
               {/* Passo 01 */}
-              <div className="relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
+              <div className="landing-card relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl mb-6 shadow-md shadow-blue-500/20">
                   01
                 </div>
@@ -845,7 +895,7 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* Passo 02 */}
-              <div className="relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
+              <div className="landing-card relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl mb-6 shadow-md shadow-blue-500/20">
                   02
                 </div>
@@ -862,7 +912,7 @@ export const LandingPage: React.FC = () => {
               </div>
 
               {/* Passo 03 */}
-              <div className="relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
+              <div className="landing-card relative p-8 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-400 hover:shadow-xl hover:shadow-slate-100 transition-all duration-300">
                 <div className="w-14 h-14 rounded-2xl bg-blue-600 text-white flex items-center justify-center font-black text-xl mb-6 shadow-md shadow-blue-500/20">
                   03
                 </div>
@@ -907,7 +957,7 @@ export const LandingPage: React.FC = () => {
             6. DEMONSTRAÇÃO INTERATIVA ("VEJA COMO É FÁCIL")
            ========================================================================= */}
         <section id="demonstracao" className="py-20 lg:py-24 bg-slate-950 text-white relative overflow-hidden">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
             <div className="text-center max-w-2xl mx-auto mb-14 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
                 Simulador Interativo
@@ -1200,7 +1250,7 @@ export const LandingPage: React.FC = () => {
             7. BENEFÍCIOS ("MAIS DO QUE UMA TAG.")
            ========================================================================= */}
         <section id="beneficios" className="py-20 lg:py-24 bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Vantagens Reais
@@ -1272,7 +1322,7 @@ export const LandingPage: React.FC = () => {
                 return (
                   <div
                     key={idx}
-                    className="p-6 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group flex flex-col justify-between"
+                    className="landing-card p-6 rounded-3xl bg-slate-50 border border-slate-200 hover:border-blue-300 hover:shadow-md transition-all duration-200 group flex flex-col justify-between"
                   >
                     <div>
                       <div className="w-12 h-12 rounded-2xl bg-white border border-slate-200 flex items-center justify-center text-blue-600 mb-4 group-hover:scale-110 group-hover:bg-blue-600 group-hover:text-white transition-all shadow-xs">
@@ -1296,7 +1346,7 @@ export const LandingPage: React.FC = () => {
             8. SEÇÃO PARA DIFERENTES TIPOS DE NEGÓCIO
            ========================================================================= */}
         <section id="segmentos" className="py-20 lg:py-24 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Segmentos Atendidos
@@ -1396,7 +1446,7 @@ export const LandingPage: React.FC = () => {
             9. SEÇÃO VISUAL "ANTES E DEPOIS"
            ========================================================================= */}
         <section id="comparativo" className="py-20 lg:py-24 bg-white border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Comparativo de Balcão
@@ -1519,7 +1569,7 @@ export const LandingPage: React.FC = () => {
             10. SEÇÃO DO PRODUTO FÍSICO & TECNOLOGIA
            ========================================================================= */}
         <section id="produto" className="py-20 lg:py-24 bg-slate-900 text-white border-b border-slate-800">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-3xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-400">
                 Hardware & Nuvem
@@ -1628,7 +1678,7 @@ export const LandingPage: React.FC = () => {
             11. PLANOS E PREÇOS TRANSPARENTES
            ========================================================================= */}
         <section id="planos" className="py-20 lg:py-24 bg-slate-50 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center max-w-2xl mx-auto mb-16 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Assinatura simples
@@ -1645,7 +1695,7 @@ export const LandingPage: React.FC = () => {
               {plans.map((plan) => (
                 <div
                   key={plan.id}
-                  className={`bg-white rounded-3xl p-8 border flex flex-col justify-between relative transition-all duration-200 ${
+                  className={`landing-card bg-white rounded-3xl p-8 border flex flex-col justify-between relative transition-all duration-200 ${
                     plan.popular
                       ? 'border-blue-500 shadow-xl ring-2 ring-blue-500/20'
                       : 'border-slate-200 shadow-xs hover:border-slate-300 hover:shadow-md'
@@ -1704,7 +1754,7 @@ export const LandingPage: React.FC = () => {
             12. FAQ (PERGUNTAS FREQUENTES)
            ========================================================================= */}
         <section id="faq" className="py-20 lg:py-24 bg-white border-b border-slate-200">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div data-landing-reveal className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="text-center mb-14 space-y-3">
               <span className="text-xs font-bold uppercase tracking-widest text-blue-600">
                 Tire Suas Dúvidas
@@ -1756,7 +1806,7 @@ export const LandingPage: React.FC = () => {
           <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[300px] bg-blue-600/20 rounded-full blur-3xl pointer-events-none"></div>
           <div className="absolute -top-10 left-1/4 w-72 h-72 bg-indigo-600/15 rounded-full blur-3xl pointer-events-none"></div>
 
-          <div className="max-w-4xl mx-auto px-4 relative z-10 space-y-6">
+          <div data-landing-reveal className="max-w-4xl mx-auto px-4 relative z-10 space-y-6">
             <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-blue-900/60 border border-blue-700/60 text-blue-300 text-xs font-semibold">
               <Sparkles className="w-3.5 h-3.5" />
               <span>Dê o próximo passo na reputação da sua empresa</span>
@@ -1773,7 +1823,7 @@ export const LandingPage: React.FC = () => {
             <div className="flex flex-col sm:flex-row items-center justify-center gap-4 pt-4">
               <Link
                 to="/loja"
-                className="w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-base rounded-2xl shadow-xl shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 cursor-pointer"
+                className="landing-primary-cta w-full sm:w-auto px-8 py-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-base rounded-2xl shadow-xl shadow-blue-600/30 transition-all transform hover:-translate-y-0.5 flex items-center justify-center gap-2.5 cursor-pointer"
               >
                 <span>Quero receber mais avaliações</span>
                 <ArrowRight className="w-4 h-4" />

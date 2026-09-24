@@ -219,6 +219,15 @@ test('collection is idempotent, uses server destination, and leaves missing loca
   assert.equal(rows[0].region, '')
   assert.equal(rows[0].country, '')
   assert.equal(JSON.parse(rows[0].ip_hash).reading_method, 'unknown')
+  const wifiEvent = {
+    ...payload,
+    event_id: '12345678-1234-4234-8234-123456789abd',
+    event_type: 'destination_open',
+    parent_event_id: payload.event_id,
+    destination_type: 'wifi',
+  }
+  assert.equal((await call(wifiEvent)).status, 201)
+  assert.equal(f.sqlite.prepare("SELECT destination_type FROM tag_scans WHERE id = 'scan-12345678-1234-4234-8234-123456789abd'").get().destination_type, 'wifi')
   assert.equal((await call({ ...payload, tag_id: 'missing' })).status, 404)
   assert.equal((await call({ ...payload, event_id: 'bad' })).status, 400)
   f.sqlite.exec("UPDATE nfc_tags SET status = 'blocked' WHERE id = 'ta'")

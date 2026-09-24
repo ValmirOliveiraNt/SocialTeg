@@ -383,10 +383,11 @@ export const PublicTagRedirectPage: React.FC = () => {
   const ifoodEnabled = cfg.ifood_enabled !== undefined ? Boolean(cfg.ifood_enabled) : destination?.type === 'ifood'
   const youtubeUrl = cfg.youtube_url || (destination?.type === 'youtube' ? destination.target_url : '') || ''
   const youtubeEnabled = cfg.youtube_enabled !== undefined ? Boolean(cfg.youtube_enabled) : destination?.type === 'youtube'
+  const wifiEnabled = Boolean(cfg.wifi_enabled && cfg.wifi_ssid)
   const customUrl = cfg.custom_url || (destination?.type === 'custom_url' ? destination.target_url : '') || ''
   const customEnabled = cfg.custom_enabled !== undefined ? Boolean(cfg.custom_enabled) : destination?.type === 'custom_url'
 
-  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, customEnabled && customUrl].filter(Boolean).length > 1
+  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, wifiEnabled, customEnabled && customUrl].filter(Boolean).length > 1
 
   return (
     <div className={`min-h-screen flex flex-col justify-between py-5 px-3 sm:py-8 sm:px-6 ${templateStyles.page}`}>
@@ -532,6 +533,11 @@ export const PublicTagRedirectPage: React.FC = () => {
                 ifoodEnabled={ifoodEnabled}
                 youtubeUrl={youtubeUrl}
                 youtubeEnabled={youtubeEnabled}
+                wifiEnabled={wifiEnabled}
+                wifiSsid={cfg.wifi_ssid}
+                wifiPassword={cfg.wifi_password}
+                wifiSecurity={cfg.wifi_security}
+                wifiHidden={Boolean(cfg.wifi_hidden)}
                 customUrl={customUrl}
                 customLabel={cfg.custom_label}
                 customEnabled={customEnabled}

@@ -55,6 +55,7 @@ const destinations: Record<string, string> = {
   address: 'Como chegar',
   ifood: 'iFood',
   youtube: 'YouTube',
+  wifi: 'Wi-Fi',
   custom_url: 'Link personalizado',
 }
 const payment: Record<string, string> = {

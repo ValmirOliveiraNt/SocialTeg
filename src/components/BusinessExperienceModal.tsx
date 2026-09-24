@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react'
-import { X, Save, Star, MessageCircle, UtensilsCrossed, Phone, MapPin, ShoppingBag, Video, Link2, Sparkles, Upload, ImageIcon, Loader2 } from 'lucide-react'
+import { X, Save, Star, MessageCircle, UtensilsCrossed, Phone, MapPin, ShoppingBag, Video, Link2, Sparkles, Upload, ImageIcon, Loader2, Wifi } from 'lucide-react'
 import { Business, DestinationConfig, DestinationType } from '../types'
 import { api } from '../services/api'
 import { ExternalActions } from './ExternalActions'
@@ -53,6 +53,11 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
     ifood_url: initial.ifood_url || '',
     youtube_enabled: initial.youtube_enabled ?? false,
     youtube_url: initial.youtube_url || '',
+    wifi_enabled: initial.wifi_enabled ?? false,
+    wifi_ssid: initial.wifi_ssid || '',
+    wifi_password: initial.wifi_password || '',
+    wifi_security: initial.wifi_security || 'WPA',
+    wifi_hidden: initial.wifi_hidden ?? false,
     custom_enabled: initial.custom_enabled ?? false,
     custom_url: initial.custom_url || '',
     custom_label: initial.custom_label || 'Saiba mais',
@@ -64,7 +69,7 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
   const [processingImage, setProcessingImage] = useState<'logo' | 'cover' | null>(null)
 
   const update = (key: string, value: any) => setConfig((current) => ({ ...current, [key]: value }))
-  const enabledCount = channels.filter((channel) => Boolean(config[channel.enabledKey])).length
+  const enabledCount = channels.filter((channel) => Boolean(config[channel.enabledKey])).length + (config.wifi_enabled ? 1 : 0)
 
   const handleImageFile = async (file: File | undefined, kind: 'logo' | 'cover') => {
     if (!file) return
@@ -101,12 +106,21 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
 
   const handleSave = async () => {
     setError(null)
+    if (config.wifi_enabled && !String(config.wifi_ssid || '').trim()) {
+      setError('Informe o nome da rede Wi-Fi para ativar esse botão.')
+      return
+    }
+    if (config.wifi_enabled && config.wifi_security !== 'nopass' && !String(config.wifi_password || '')) {
+      setError('Informe a senha da rede Wi-Fi ou selecione “Sem senha”.')
+      return
+    }
     const rawContact = String(config.contact_url || '').trim()
     const contact = rawContact.includes('@') && !rawContact.includes('://') ? `mailto:${rawContact}` : /^\+?[\d\s().-]+$/.test(rawContact) ? `tel:${rawContact.replace(/[^\d+]/g, '')}` : withHttps(rawContact)
     const rawAddress = String(config.address_url || '').trim()
     const address = rawAddress && !/^[a-z][a-z\d+.-]*:/i.test(rawAddress) ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(rawAddress)}` : rawAddress
     const normalized: DestinationConfig = {
       ...config,
+      direct_redirect: config.wifi_enabled ? false : config.direct_redirect,
       google_url: String(config.google_url || '').trim(),
       instagram_url: preview.instagram,
       whatsapp_number: String(config.whatsapp_number || '').replace(/\D/g, ''),
@@ -202,13 +216,17 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
                   {enabled && <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">{channel.key === 'custom' && <input value={String(config.custom_label || '')} onChange={(event) => update('custom_label', event.target.value)} maxLength={28} placeholder="Texto do botão" className="w-full rounded-xl border border-slate-300 px-3 py-2 text-xs" />}<input value={String(config[channel.valueKey] || '')} onChange={(event) => update(channel.valueKey, event.target.value)} placeholder={channel.placeholder} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" />{channel.key === 'whatsapp' && <input value={String(config.whatsapp_message || '')} onChange={(event) => update('whatsapp_message', event.target.value)} placeholder="Mensagem inicial do WhatsApp" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" />}</div>}
                 </div>
               })}
+              <div className={`rounded-2xl border p-4 transition ${config.wifi_enabled ? 'border-sky-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/70'}`}>
+                <div className="flex items-start justify-between gap-3"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Wifi className="h-4 w-4" /></div><div><strong className="block text-xs text-slate-900">Wi-Fi para clientes</strong><span className="text-[11px] text-slate-500">QR Code e cópia dos dados da rede</span></div></div><button type="button" role="switch" aria-checked={Boolean(config.wifi_enabled)} onClick={() => setConfig((current) => ({ ...current, wifi_enabled: !current.wifi_enabled, direct_redirect: current.wifi_enabled ? current.direct_redirect : false }))} className={`relative h-6 w-11 shrink-0 rounded-full transition ${config.wifi_enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${config.wifi_enabled ? 'left-5' : 'left-0.5'}`} /></button></div>
+                {config.wifi_enabled && <div className="mt-3 space-y-2 border-t border-slate-100 pt-3"><input value={String(config.wifi_ssid || '')} onChange={(event) => update('wifi_ssid', event.target.value)} placeholder="Nome da rede (SSID)" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" /><input type="password" autoComplete="new-password" value={String(config.wifi_password || '')} onChange={(event) => update('wifi_password', event.target.value)} placeholder="Senha da rede" disabled={config.wifi_security === 'nopass'} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs disabled:bg-slate-100" /><div className="grid grid-cols-2 gap-2"><select value={config.wifi_security || 'WPA'} onChange={(event) => update('wifi_security', event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"><input type="checkbox" checked={Boolean(config.wifi_hidden)} onChange={(event) => update('wifi_hidden', event.target.checked)} />Rede oculta</label></div><p className="text-[10px] leading-4 text-amber-700">Recomendado: configure uma rede exclusiva para visitantes.</p></div>}
+              </div>
             </div>
           </section>
 
           <section className="rounded-3xl border border-slate-200 bg-slate-50 p-4 sm:p-5">
             <div className="mb-4 flex items-center gap-2"><Sparkles className="h-4 w-4 text-amber-500" /><div><h3 className="text-sm font-black text-slate-900">Abertura e identidade visual</h3><p className="text-xs text-slate-500">Controle como a experiência será apresentada ao cliente.</p></div></div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-              <label className="rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-800">Forma de abertura</span><select value={config.direct_redirect ? 'direct' : 'page'} onChange={(event) => update('direct_redirect', event.target.value === 'direct')} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs"><option value="page">Página com todos os botões</option><option value="direct">Abrir primeiro link diretamente</option></select></label>
+              <label className="rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-800">Forma de abertura</span><select value={config.direct_redirect ? 'direct' : 'page'} disabled={Boolean(config.wifi_enabled)} onChange={(event) => update('direct_redirect', event.target.value === 'direct')} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs disabled:bg-slate-100 disabled:text-slate-400"><option value="page">Página com todos os botões</option><option value="direct">Abrir primeiro link diretamente</option></select>{config.wifi_enabled && <span className="mt-2 block text-[10px] text-sky-700">A página de botões é necessária para mostrar o acesso ao Wi-Fi.</span>}</label>
               <label className="rounded-2xl border border-slate-200 bg-white p-4"><span className="text-xs font-bold text-slate-800">Modelo da página</span><select value={config.page_template} disabled={Boolean(config.direct_redirect)} onChange={(event) => update('page_template', event.target.value)} className="mt-2 w-full rounded-xl border border-slate-300 px-3 py-2 text-xs disabled:opacity-50"><option value="classic">Clássico</option><option value="modern">Moderno</option><option value="elegant">Elegante</option></select></label>
               <label><span className="text-xs font-bold text-slate-700">Título de boas-vindas</span><input value={String(config.welcome_title || '')} onChange={(event) => update('welcome_title', event.target.value)} className="mt-1 w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" placeholder="Como foi sua experiência?" /></label>
               <label><span className="text-xs font-bold text-slate-700">Cor principal</span><div className="mt-1 flex items-center gap-3"><input type="color" value={String(config.primary_color || '#2563eb')} onChange={(event) => update('primary_color', event.target.value)} className="h-10 w-14 rounded-lg border border-slate-300 bg-white p-1" /><span className="font-mono text-xs font-bold uppercase text-slate-600">{config.primary_color}</span></div></label>
@@ -217,7 +235,7 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
             <label className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-800"><input type="checkbox" checked={Boolean(config.star_rating_incentive)} onChange={(event) => update('star_rating_incentive', event.target.checked)} className="h-4 w-4 accent-blue-600" />Exibir estrelas interativas quando o Google estiver ativo</label>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 p-4"><div className="mb-3 flex items-center justify-between"><strong className="text-xs uppercase tracking-wider text-slate-700">Prévia dos botões</strong><span className="text-[11px] text-slate-500">A logo e a capa vêm dos dados do estabelecimento</span></div><ExternalActions menuUrl={preview.menu} menuEnabled={Boolean(config.menu_enabled)} googleReviewsUrl={preview.google} googleReviewsEnabled={Boolean(config.google_enabled)} instagramUrl={preview.instagram} instagramEnabled={Boolean(config.instagram_enabled)} whatsappUrl={preview.whatsapp} whatsappEnabled={Boolean(config.whatsapp_enabled)} contactUrl={preview.contact} contactEnabled={Boolean(config.contact_enabled)} addressUrl={preview.address} addressEnabled={Boolean(config.address_enabled)} ifoodUrl={preview.ifood} ifoodEnabled={Boolean(config.ifood_enabled)} youtubeUrl={preview.youtube} youtubeEnabled={Boolean(config.youtube_enabled)} customUrl={preview.custom} customLabel={String(config.custom_label || 'Saiba mais')} customEnabled={Boolean(config.custom_enabled)} primaryColor={String(config.primary_color || '#2563eb')} /></section>
+          <section className="rounded-3xl border border-slate-200 p-4"><div className="mb-3 flex items-center justify-between"><strong className="text-xs uppercase tracking-wider text-slate-700">Prévia dos botões</strong><span className="text-[11px] text-slate-500">A logo e a capa vêm dos dados do estabelecimento</span></div><ExternalActions menuUrl={preview.menu} menuEnabled={Boolean(config.menu_enabled)} googleReviewsUrl={preview.google} googleReviewsEnabled={Boolean(config.google_enabled)} instagramUrl={preview.instagram} instagramEnabled={Boolean(config.instagram_enabled)} whatsappUrl={preview.whatsapp} whatsappEnabled={Boolean(config.whatsapp_enabled)} contactUrl={preview.contact} contactEnabled={Boolean(config.contact_enabled)} addressUrl={preview.address} addressEnabled={Boolean(config.address_enabled)} ifoodUrl={preview.ifood} ifoodEnabled={Boolean(config.ifood_enabled)} youtubeUrl={preview.youtube} youtubeEnabled={Boolean(config.youtube_enabled)} wifiEnabled={Boolean(config.wifi_enabled)} wifiSsid={config.wifi_ssid} wifiPassword={config.wifi_password} wifiSecurity={config.wifi_security} wifiHidden={Boolean(config.wifi_hidden)} customUrl={preview.custom} customLabel={String(config.custom_label || 'Saiba mais')} customEnabled={Boolean(config.custom_enabled)} primaryColor={String(config.primary_color || '#2563eb')} /></section>
         </div>
 
         <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white/95 p-4 backdrop-blur-xl sm:px-6"><button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100">Cancelar</button><button type="button" disabled={saving} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-60">{saving ? <SavingIndicator label="Salvando padrão..." /> : <><Save className="h-4 w-4" />Salvar para todas as tags</>}</button></div>
