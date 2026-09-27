@@ -1,6 +1,8 @@
 import {
   AuditLog,
   Business,
+  Coupon,
+  CouponValidation,
   NFCTag,
   Order,
   Plan,
@@ -310,8 +312,8 @@ export const api = {
     async getById(id: string): Promise<Order | null> {
       return request<Order | null>(`/api/orders?id=${encodeURIComponent(id)}`)
     },
-    async create(orderData: any): Promise<{ success: boolean; orderId: string; assignedSerials: string[] }> {
-      return request<{ success: boolean; orderId: string; assignedSerials: string[] }>('/api/orders', {
+    async create(orderData: any): Promise<{ success: boolean; orderId: string; assignedSerials: string[]; subtotal: number; discount: number; shipping: number; total: number; coupon_code?: string }> {
+      return request('/api/orders', {
         method: 'POST',
         body: JSON.stringify(orderData),
       })
@@ -321,6 +323,21 @@ export const api = {
         method: 'PUT',
         body: JSON.stringify(orderData),
       })
+    },
+  },
+
+  coupons: {
+    async validate(code: string, subtotal: number): Promise<CouponValidation> {
+      return request<CouponValidation>(`/api/coupons?code=${encodeURIComponent(code)}&subtotal=${encodeURIComponent(String(subtotal))}`)
+    },
+    async getAll(): Promise<Coupon[]> {
+      return request<Coupon[]>('/api/coupons')
+    },
+    async save(coupon: Partial<Coupon>): Promise<Coupon> {
+      return request<Coupon>('/api/coupons', { method: coupon.id ? 'PUT' : 'POST', body: JSON.stringify(coupon) })
+    },
+    async delete(id: string): Promise<{ success: boolean; deactivated: boolean }> {
+      return request(`/api/coupons?id=${encodeURIComponent(id)}`, { method: 'DELETE' })
     },
   },
 

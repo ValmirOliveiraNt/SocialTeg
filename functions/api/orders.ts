@@ -2,6 +2,7 @@ interface Env {
   DB: D1Database
 }
 import { requireAdmin, requireSession } from '../_lib/session'
+import { validateCoupon } from '../_lib/coupons'
 
 function shippingFor(zip: unknown): number {
   const clean = typeof zip === 'string' ? zip.replace(/\D/g, '') : ''
@@ -71,16 +72,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       orderItems.push({ product, quantity, total })
     }
     const shipping = shippingFor(address.zip)
-    const discount = method === 'pix' ? subtotal * 0.05 : 0
+    const couponResult = data.coupon_code ? await validateCoupon(context.env.DB, data.coupon_code, subtotal) : null
+    const discount = couponResult?.discount || 0
     const total = Math.max(0, subtotal - discount + shipping)
 
     await context.env.DB.prepare(`
-      INSERT INTO orders (id, user_id, user_name, user_email, status, subtotal, discount, shipping, total, payment_status, payment_method, shipping_address, tracking_code, assigned_serials, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO orders (id, user_id, user_name, user_email, status, subtotal, discount, shipping, total, payment_status, payment_method, shipping_address, tracking_code, assigned_serials, coupon_id, coupon_code, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).bind(
       orderId,
       user.id, user.name, user.email, 'pending', subtotal, discount, shipping, total,
-      'pending', method, JSON.stringify(address), null, '[]'
+      'pending', method, JSON.stringify(address), null, '[]', couponResult?.coupon.id || null, couponResult?.coupon.code || null
     ).run()
 
     for (const item of orderItems) {
@@ -94,7 +96,17 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
           item.product.id, item.product.name, item.quantity, item.product.price, item.total
         ).run()
     }
-    return Response.json({ success: true, orderId, assignedSerials: [] }, { status: 201 })
+    if (couponResult) {
+      const update = await context.env.DB.prepare(`UPDATE coupons SET usage_count=usage_count+1,updated_at=datetime('now') WHERE id=? AND status='active' AND (usage_limit IS NULL OR usage_count < usage_limit)`)
+        .bind(couponResult.coupon.id).run()
+      if (!update.meta.changes) {
+        await context.env.DB.prepare('DELETE FROM orders WHERE id=?').bind(orderId).run()
+        return Response.json({ error: 'Este cupom acabou de atingir o limite de utilizações.' }, { status: 409 })
+      }
+      await context.env.DB.prepare(`INSERT INTO coupon_redemptions (id,coupon_id,order_id,user_id,discount_amount) VALUES (?,?,?,?,?)`)
+        .bind(`redemption-${crypto.randomUUID()}`,couponResult.coupon.id,orderId,user.id,discount).run()
+    }
+    return Response.json({ success: true, orderId, assignedSerials: [], subtotal, discount, shipping, total, coupon_code: couponResult?.coupon.code || null }, { status: 201 })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 400 })
   }

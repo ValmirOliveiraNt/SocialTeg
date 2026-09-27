@@ -1,4 +1,4 @@
-import React, { useState } from 'react'
+import React, { useEffect, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ShoppingBag,
@@ -13,12 +13,16 @@ import {
   User as UserIcon,
   CheckCircle2,
   AlertCircle,
+  TicketPercent,
+  X,
 } from 'lucide-react'
 import { Navbar } from '../components/Navbar'
 import { Footer } from '../components/Footer'
 import { useCart } from '../context/CartContext'
 import { useAuth } from '../context/AuthContext'
 import { PaymentGatewayService, ShippingAddress } from '../services/payment'
+import { api } from '../services/api'
+import type { CouponValidation } from '../types'
 
 export const CheckoutPage: React.FC = () => {
   const { items, updateQuantity, removeFromCart, subtotal, totalCount, clearCart } = useCart()
@@ -51,10 +55,35 @@ export const CheckoutPage: React.FC = () => {
   const [cardExpiry, setCardExpiry] = useState('')
   const [cardCvv, setCardCvv] = useState('')
   const [installments, setInstallments] = useState(1)
+  const [couponCode, setCouponCode] = useState('')
+  const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null)
+  const [couponLoading, setCouponLoading] = useState(false)
+  const [couponMessage, setCouponMessage] = useState('')
 
   const shipping = PaymentGatewayService.calculateShipping(address.zip, totalCount)
-  const pixDiscount = paymentMethod === 'pix' ? subtotal * 0.05 : 0
-  const finalTotal = Math.max(0, subtotal - pixDiscount + shipping)
+  const couponDiscount = appliedCoupon?.discount || 0
+  const finalTotal = Math.max(0, subtotal - couponDiscount + shipping)
+
+  useEffect(() => {
+    if (!appliedCoupon) return
+    setAppliedCoupon(null)
+    setCouponMessage('O carrinho mudou. Aplique o cupom novamente para recalcular o desconto.')
+  }, [subtotal])
+
+  const handleApplyCoupon = async (event: React.FormEvent) => {
+    event.preventDefault()
+    setCouponLoading(true)
+    setCouponMessage('')
+    try {
+      const validated = await api.coupons.validate(couponCode, subtotal)
+      setAppliedCoupon(validated)
+      setCouponCode(validated.code)
+      setCouponMessage(`Cupom ${validated.code} aplicado com sucesso.`)
+    } catch (couponError: any) {
+      setAppliedCoupon(null)
+      setCouponMessage(couponError?.message || 'Não foi possível aplicar este cupom.')
+    } finally { setCouponLoading(false) }
+  }
 
   const handleAuthNext = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -104,6 +133,7 @@ export const CheckoutPage: React.FC = () => {
         address,
         {
           method: paymentMethod,
+          couponCode: appliedCoupon?.code,
           cardDetails:
             paymentMethod === 'credit_card'
               ? {
@@ -459,9 +489,7 @@ export const CheckoutPage: React.FC = () => {
                   >
                     <div className="flex items-center justify-between mb-2">
                       <QrCode className="w-6 h-6 text-emerald-600" />
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                        5% Desconto
-                      </span>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Instantâneo</span>
                     </div>
                     <div className="font-bold text-sm text-slate-900">PIX Instantâneo</div>
                     <div className="text-[11px] text-slate-500">Aprovação em segundos</div>
@@ -491,7 +519,7 @@ export const CheckoutPage: React.FC = () => {
                   <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 mb-6 text-xs text-emerald-900 space-y-2">
                     <div className="font-bold flex items-center gap-1.5">
                       <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Desconto de 5% aplicado no PIX</span>
+                      <span>Pagamento seguro por PIX</span>
                     </div>
                     <p className="text-[11px] leading-relaxed">
                       Ao clicar em finalizar, o QR Code dinâmico do PIX e a chave Copia e Cola serão gerados. Os seriais de ativação das suas Tags serão liberados instantaneamente.
@@ -645,15 +673,25 @@ export const CheckoutPage: React.FC = () => {
                 ))}
               </div>
 
+              <form onSubmit={handleApplyCoupon} className="mb-5 rounded-2xl border border-dashed border-blue-200 bg-blue-50/50 p-4">
+                <label htmlFor="coupon-code" className="flex items-center gap-2 text-xs font-bold text-slate-800"><TicketPercent className="h-4 w-4 text-blue-600" /> Cupom de desconto</label>
+                <div className="mt-2 flex gap-2">
+                  <input id="coupon-code" value={couponCode} disabled={Boolean(appliedCoupon)} onChange={(event) => setCouponCode(event.target.value.toUpperCase().replace(/[^A-Z0-9_-]/g, ''))} maxLength={32} placeholder="DIGITE SEU CUPOM" className="min-w-0 flex-1 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-bold uppercase outline-none focus:border-blue-500 disabled:bg-slate-100" />
+                  {appliedCoupon ? <button type="button" onClick={() => { setAppliedCoupon(null); setCouponCode(''); setCouponMessage('') }} aria-label="Remover cupom" className="rounded-xl border border-slate-300 bg-white px-3 text-slate-500 hover:text-red-600"><X className="h-4 w-4" /></button> : <button disabled={couponLoading || !couponCode.trim()} className="rounded-xl bg-slate-900 px-4 py-2 text-xs font-bold text-white disabled:cursor-not-allowed disabled:opacity-50">{couponLoading ? 'Validando...' : 'Aplicar'}</button>}
+                </div>
+                {couponMessage && <p className={`mt-2 text-[11px] font-semibold ${appliedCoupon ? 'text-emerald-700' : 'text-amber-700'}`}>{couponMessage}</p>}
+                {appliedCoupon?.description && <p className="mt-1 text-[10px] text-slate-500">{appliedCoupon.description}</p>}
+              </form>
+
               <div className="space-y-2 pt-2 text-xs border-t border-slate-100">
                 <div className="flex justify-between text-slate-600">
                   <span>Subtotal</span>
                   <span>R$ {subtotal.toFixed(2).replace('.', ',')}</span>
                 </div>
-                {pixDiscount > 0 && (
+                {couponDiscount > 0 && (
                   <div className="flex justify-between text-emerald-600 font-medium">
-                    <span>Desconto PIX (5%)</span>
-                    <span>- R$ {pixDiscount.toFixed(2).replace('.', ',')}</span>
+                    <span>Cupom {appliedCoupon?.code}</span>
+                    <span>- R$ {couponDiscount.toFixed(2).replace('.', ',')}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-slate-600">

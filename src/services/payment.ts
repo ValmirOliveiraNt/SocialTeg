@@ -3,6 +3,7 @@ import { api } from './api'
 
 export interface CheckoutPaymentData {
   method: 'pix' | 'credit_card' | 'boleto'
+  couponCode?: string
   cardDetails?: {
     cardNumber: string
     holderName: string
@@ -75,8 +76,8 @@ export const PaymentGatewayService = {
     }
 
     const shipping = this.calculateShipping(address.zip, items.length)
-    const discount = payment.method === 'pix' ? subtotal * 0.05 : 0
-    const total = Math.max(0, subtotal - discount + shipping)
+    const discount = 0
+    const total = Math.max(0, subtotal + shipping)
 
     const orderId = 'ORD-' + Date.now().toString().slice(-6)
     orderItems.forEach((it) => (it.order_id = orderId))
@@ -93,6 +94,7 @@ export const PaymentGatewayService = {
       total,
       payment_status: 'approved',
       payment_method: payment.method,
+      coupon_code: payment.couponCode || undefined,
       shipping_address: address,
       items: orderItems,
     })
@@ -103,7 +105,7 @@ export const PaymentGatewayService = {
       action: 'CREATE_ORDER',
       entity_type: 'order',
       entity_id: orderId,
-      details: `Pedido ${orderId} concluído com sucesso via ${payment.method.toUpperCase()} no valor de R$ ${total.toFixed(2)}.`,
+      details: `Pedido ${orderId} concluído com sucesso via ${payment.method.toUpperCase()} no valor de R$ ${Number(res.total ?? total).toFixed(2)}.`,
     })
 
     return {
@@ -116,4 +118,3 @@ export const PaymentGatewayService = {
     }
   }
 }
-

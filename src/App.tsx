@@ -27,6 +27,7 @@ import { AdminOrdersPage } from './pages/admin/AdminOrdersPage'
 import { AdminProductsPage } from './pages/admin/AdminProductsPage'
 import { AdminLogsPage } from './pages/admin/AdminLogsPage'
 import { AdminSubscriptionsPage } from './pages/admin/AdminSubscriptionsPage'
+import { AdminCouponsPage } from './pages/admin/AdminCouponsPage'
 
 const CustomerRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { currentUser, isRestoringSession } = useAuth()
@@ -97,6 +98,7 @@ export function App() {
               <Route path="tags" element={<AdminTagsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />
               <Route path="products" element={<AdminProductsPage />} />
+              <Route path="coupons" element={<AdminCouponsPage />} />
               <Route path="logs" element={<AdminLogsPage />} />
             </Route>
 

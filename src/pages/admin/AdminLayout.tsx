@@ -11,6 +11,7 @@ import {
   X,
   LayoutDashboard,
   CreditCard,
+  TicketPercent,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { BrandLogo } from '../../components/BrandLogo'
@@ -28,6 +29,7 @@ export const AdminLayout: React.FC = () => {
     { label: 'Estoque & Tags NFC', path: '/admin/tags', icon: Radio },
     { label: 'Gestão de Pedidos', path: '/admin/orders', icon: ShoppingBag },
     { label: 'Produtos & Displays', path: '/admin/products', icon: Package },
+    { label: 'Cupons de Desconto', path: '/admin/coupons', icon: TicketPercent },
     { label: 'Logs de Auditoria', path: '/admin/logs', icon: FileText },
   ]
 

@@ -203,6 +203,33 @@ export interface Order {
   updated_at: string
   items: OrderItem[]
   assigned_serials?: string[]
+  coupon_id?: string
+  coupon_code?: string
+}
+
+export interface Coupon {
+  id: string
+  code: string
+  description: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  minimum_order_amount: number
+  maximum_discount_amount?: number | null
+  usage_limit?: number | null
+  usage_count: number
+  starts_at?: string | null
+  expires_at?: string | null
+  status: 'active' | 'inactive'
+  created_at: string
+  updated_at: string
+}
+
+export interface CouponValidation {
+  code: string
+  description: string
+  discount_type: 'percentage' | 'fixed'
+  discount_value: number
+  discount: number
 }
 
 export interface Product {

@@ -128,9 +128,12 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_address TEXT NOT NULL,
   tracking_code TEXT,
   assigned_serials TEXT,
+  coupon_id TEXT,
+  coupon_code TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
-  FOREIGN KEY (user_id) REFERENCES users(id)
+  FOREIGN KEY (user_id) REFERENCES users(id),
+  FOREIGN KEY (coupon_id) REFERENCES coupons(id)
 );
 
 CREATE TABLE IF NOT EXISTS order_items (
@@ -143,6 +146,35 @@ CREATE TABLE IF NOT EXISTS order_items (
   total REAL NOT NULL,
   FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
   FOREIGN KEY (product_id) REFERENCES products(id)
+);
+
+CREATE TABLE IF NOT EXISTS coupons (
+  id TEXT PRIMARY KEY,
+  code TEXT NOT NULL UNIQUE COLLATE NOCASE,
+  description TEXT NOT NULL DEFAULT '',
+  discount_type TEXT NOT NULL CHECK (discount_type IN ('percentage', 'fixed')),
+  discount_value REAL NOT NULL CHECK (discount_value > 0),
+  minimum_order_amount REAL NOT NULL DEFAULT 0,
+  maximum_discount_amount REAL,
+  usage_limit INTEGER,
+  usage_count INTEGER NOT NULL DEFAULT 0,
+  starts_at TEXT,
+  expires_at TEXT,
+  status TEXT NOT NULL DEFAULT 'active' CHECK (status IN ('active', 'inactive')),
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS coupon_redemptions (
+  id TEXT PRIMARY KEY,
+  coupon_id TEXT NOT NULL,
+  order_id TEXT NOT NULL UNIQUE,
+  user_id TEXT NOT NULL,
+  discount_amount REAL NOT NULL,
+  redeemed_at TEXT NOT NULL DEFAULT (datetime('now')),
+  FOREIGN KEY (coupon_id) REFERENCES coupons(id),
+  FOREIGN KEY (order_id) REFERENCES orders(id) ON DELETE CASCADE,
+  FOREIGN KEY (user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS auth_rate_limits (
