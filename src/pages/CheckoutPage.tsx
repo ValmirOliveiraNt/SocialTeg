@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react'
+import React, { useEffect, useRef, useState } from 'react'
 import { useNavigate, Link } from 'react-router-dom'
 import {
   ShoppingBag,
@@ -15,6 +15,7 @@ import {
   AlertCircle,
   TicketPercent,
   X,
+  Loader2,
 } from 'lucide-react'
 import { Navbar } from '../components/Navbar'
 import { Footer } from '../components/Footer'
@@ -23,6 +24,11 @@ import { useAuth } from '../context/AuthContext'
 import { PaymentGatewayService, ShippingAddress } from '../services/payment'
 import { api } from '../services/api'
 import type { CouponValidation } from '../types'
+
+const formatCep = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+}
 
 export const CheckoutPage: React.FC = () => {
   const { items, updateQuantity, removeFromCart, subtotal, totalCount, clearCart } = useCart()
@@ -59,6 +65,9 @@ export const CheckoutPage: React.FC = () => {
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
   const [couponMessage, setCouponMessage] = useState('')
+  const [cepStatus, setCepStatus] = useState<'idle' | 'loading' | 'success' | 'error'>('idle')
+  const [cepMessage, setCepMessage] = useState('')
+  const numberInputRef = useRef<HTMLInputElement>(null)
 
   const shipping = PaymentGatewayService.calculateShipping(address.zip, totalCount)
   const couponDiscount = appliedCoupon?.discount || 0
@@ -69,6 +78,51 @@ export const CheckoutPage: React.FC = () => {
     setAppliedCoupon(null)
     setCouponMessage('O carrinho mudou. Aplique o cupom novamente para recalcular o desconto.')
   }, [subtotal])
+
+  useEffect(() => {
+    const cep = address.zip.replace(/\D/g, '')
+    if (cep.length !== 8) return
+
+    const controller = new AbortController()
+    const timer = window.setTimeout(async () => {
+      setCepStatus('loading')
+      setCepMessage('Buscando endereço...')
+      try {
+        const found = await api.address.lookupCep(cep, controller.signal)
+        setAddress((current) => ({
+          ...current,
+          zip: formatCep(found.cep),
+          street: found.street,
+          neighborhood: found.neighborhood,
+          city: found.city,
+          state: found.state,
+          complement: current.complement || found.complement,
+        }))
+        setCepStatus('success')
+        setCepMessage(
+          found.street
+            ? 'Endereço encontrado. Informe apenas o número e, se necessário, o complemento.'
+            : 'Cidade e estado encontrados. Complete a rua, o bairro e o número.'
+        )
+        window.setTimeout(() => numberInputRef.current?.focus(), 0)
+      } catch (lookupError: any) {
+        if (lookupError?.name === 'AbortError') return
+        setCepStatus('error')
+        setCepMessage(lookupError?.message || 'Não foi possível consultar o CEP. Preencha o endereço manualmente.')
+      }
+    }, 400)
+
+    return () => {
+      window.clearTimeout(timer)
+      controller.abort()
+    }
+  }, [address.zip])
+
+  const handleCepChange = (value: string) => {
+    setCepStatus('idle')
+    setCepMessage('')
+    setAddress((current) => ({ ...current, zip: formatCep(value) }))
+  }
 
   const handleApplyCoupon = async (event: React.FormEvent) => {
     event.preventDefault()
@@ -356,21 +410,29 @@ export const CheckoutPage: React.FC = () => {
                 </div>
 
                 <form onSubmit={handleAddressNext} className="space-y-4">
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="col-span-1">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                    <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
                         CEP
                       </label>
-                      <input
-                        type="text"
-                        required
-                        value={address.zip}
-                        onChange={(e) => setAddress({ ...address, zip: e.target.value })}
-                        placeholder="01426-000"
-                        className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                      />
+                      <div className="relative">
+                        <input
+                          type="text"
+                          required
+                          value={address.zip}
+                          onChange={(e) => handleCepChange(e.target.value)}
+                          placeholder="01426-000"
+                          inputMode="numeric"
+                          autoComplete="postal-code"
+                          maxLength={9}
+                          aria-describedby="cep-feedback"
+                          className="w-full px-3 py-2 pr-10 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
+                        />
+                        {cepStatus === 'loading' && <Loader2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 animate-spin text-blue-600" />}
+                        {cepStatus === 'success' && <CheckCircle2 className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-emerald-600" />}
+                      </div>
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
                         Rua / Avenida
                       </label>
@@ -379,25 +441,33 @@ export const CheckoutPage: React.FC = () => {
                         required
                         value={address.street}
                         onChange={(e) => setAddress({ ...address, street: e.target.value })}
+                        autoComplete="address-line1"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
+                    {cepMessage && (
+                      <p id="cep-feedback" role={cepStatus === 'error' ? 'alert' : 'status'} className={`-mt-2 text-[11px] leading-snug sm:col-span-3 ${cepStatus === 'error' ? 'font-semibold text-red-600' : cepStatus === 'success' ? 'font-semibold text-emerald-700' : 'text-slate-500'}`}>
+                        {cepMessage}
+                      </p>
+                    )}
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
                         Número
                       </label>
                       <input
+                        ref={numberInputRef}
                         type="text"
                         required
                         value={address.number}
                         onChange={(e) => setAddress({ ...address, number: e.target.value })}
+                        autoComplete="address-line2"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
-                    <div className="col-span-2">
+                    <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
                         Complemento (Opcional)
                       </label>
@@ -405,12 +475,13 @@ export const CheckoutPage: React.FC = () => {
                         type="text"
                         value={address.complement}
                         onChange={(e) => setAddress({ ...address, complement: e.target.value })}
+                        autoComplete="address-line3"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
                   </div>
 
-                  <div className="grid grid-cols-3 gap-4">
+                  <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
                     <div>
                       <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
                         Bairro
@@ -420,6 +491,7 @@ export const CheckoutPage: React.FC = () => {
                         required
                         value={address.neighborhood}
                         onChange={(e) => setAddress({ ...address, neighborhood: e.target.value })}
+                        autoComplete="address-level3"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
@@ -432,6 +504,7 @@ export const CheckoutPage: React.FC = () => {
                         required
                         value={address.city}
                         onChange={(e) => setAddress({ ...address, city: e.target.value })}
+                        autoComplete="address-level2"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
                       />
                     </div>
@@ -445,6 +518,7 @@ export const CheckoutPage: React.FC = () => {
                         maxLength={2}
                         value={address.state}
                         onChange={(e) => setAddress({ ...address, state: e.target.value.toUpperCase() })}
+                        autoComplete="address-level1"
                         className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden uppercase"
                       />
                     </div>

@@ -41,6 +41,18 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 }
 
 export const api = {
+  address: {
+    lookupCep(cep: string, signal?: AbortSignal): Promise<{
+      cep: string
+      street: string
+      complement: string
+      neighborhood: string
+      city: string
+      state: string
+    }> {
+      return request(`/api/cep?cep=${encodeURIComponent(cep)}`, { signal })
+    },
+  },
   analytics: {
     get(days: number, businessId = '', signal?: AbortSignal): Promise<Analytics> {
       const params = new URLSearchParams({ days: String(days) })
