@@ -49,6 +49,9 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
   const systemBranded = definition.brandMode === 'system'
   const [failedLogo, setFailedLogo] = useState<string | null>(null)
   const businessLogo = business?.logo_url?.trim() || ''
+  const exportSafeBusinessLogo = business?.id
+    ? `/api/business-image?id=${encodeURIComponent(business.id)}&kind=logo`
+    : businessLogo
   const hasBusinessLogo = Boolean(businessLogo && failedLogo !== businessLogo)
   const shell = aurora
     ? 'overflow-hidden border-violet-300 bg-gradient-to-br from-[#5316a8] via-[#1559d6] to-[#00a7b7] text-white'
@@ -76,7 +79,7 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
       <div className="relative z-10">
       {businessBranded && hasBusinessLogo && (
         <img
-          src={businessLogo}
+          src={exportSafeBusinessLogo}
           alt={`Logo de ${business?.name || tag.name}`}
           onError={() => setFailedLogo(businessLogo)}
           className="mx-auto mb-3 h-auto max-h-16 w-auto max-w-[240px] object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.28)]"
@@ -88,7 +91,7 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
       <h1 className={`mb-1 text-xl font-black leading-tight ${editorial ? 'font-serif tracking-tight' : ''}`}>{business?.name || tag.name}</h1>
       <p className={`mb-3 text-xs font-medium ${muted}`}>{impact ? 'Gostou do atendimento? Conte para todo mundo!' : editorial ? 'Sua experiência merece ser compartilhada.' : orbit ? 'Aproxime, avalie e ajude este negócio a crescer.' : 'Sua opinião é fundamental para nossa equipe.'}</p>
       <div className={`mx-auto mb-3 inline-block rounded-[1.35rem] p-3 ${qrFrame}`}>
-        <QRCodeSVG value={qrUrl} size={165} level="H" includeMargin={false} imageSettings={{ src: 'https://www.gstatic.com/images/branding/product/2x/googleg_48dp.png', x: undefined, y: undefined, height: 32, width: 32, excavate: true }} />
+        <QRCodeSVG value={qrUrl} size={165} level="H" includeMargin={false} />
       </div>
       <div className={`flex flex-col gap-1 rounded-xl border p-2.5 text-[10px] font-semibold ${instructions}`}>
         <div className="flex items-center justify-center gap-1.5"><Radio className="h-3.5 w-3.5" /><span>Aproxime o celular da Tag NFC</span></div>
@@ -145,6 +148,7 @@ export const PrintStandPage: React.FC = () => {
         if (!node) continue
         const png = await toPng(node, {
           cacheBust: true,
+          imagePlaceholder: 'data:image/gif;base64,R0lGODlhAQABAAD/ACwAAAAAAQABAAACADs=',
           pixelRatio: 300 / 96,
           width: node.offsetWidth,
           height: node.offsetHeight,
