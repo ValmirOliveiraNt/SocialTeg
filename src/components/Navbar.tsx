@@ -9,7 +9,6 @@ import {
   Menu,
   X,
   ArrowRight,
-  Radio,
 } from 'lucide-react'
 import { useAuth } from '../context/AuthContext'
 import { useCart } from '../context/CartContext'
@@ -50,24 +49,6 @@ export const Navbar: React.FC = () => {
           : 'bg-white/95 backdrop-blur-md border-b border-slate-200 shadow-xs'
       }`}
     >
-      {/* Barra superior de status oficial */}
-      <div className="bg-slate-900 text-slate-300 text-xs py-1.5 px-4 text-center flex items-center justify-between border-b border-slate-800">
-        <div className="flex items-center gap-2 mx-auto sm:mx-0">
-          <span className="inline-block w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
-          <span className="font-medium text-slate-200">
-            Plataforma Oficial AvaliaTag • Tags NFC & QR Code Dinâmicos
-          </span>
-        </div>
-        <div className="hidden sm:flex items-center gap-4 text-slate-400 text-[11px]">
-          <span className="flex items-center gap-1">
-            <Radio className="w-3 h-3 text-blue-400" />
-            NFC NTAG213 Homologado
-          </span>
-          <span>•</span>
-          <span>Sem Mensalidade Obrigatória</span>
-        </div>
-      </div>
-
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex items-center justify-between h-16">
           <div className="flex items-center gap-8">
