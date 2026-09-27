@@ -74,19 +74,15 @@ const DisplayArtwork: React.FC<{ tag: NFCTag; business?: Business; template: Pri
       {orbit && <><div className="pointer-events-none absolute left-1/2 top-12 h-72 w-72 -translate-x-1/2 rounded-full border border-cyan-300/20" /><div className="pointer-events-none absolute left-1/2 top-24 h-56 w-56 -translate-x-1/2 rounded-full border border-blue-300/15" /></>}
       {editorial && <div className="pointer-events-none absolute left-0 top-0 h-2 w-full bg-[#19211d]" />}
       <div className="relative z-10">
-      {businessBranded && (hasBusinessLogo ? (
-        <div className={`mx-auto mb-5 flex h-20 min-w-36 max-w-[260px] items-center justify-center rounded-2xl border px-5 py-3 shadow-lg ${dark ? 'border-white/30 bg-white' : editorial ? 'border-[#d8cfbe] bg-white' : 'border-slate-200 bg-white'}`}>
-          <img
-            src={businessLogo}
-            alt={`Logo de ${business?.name || tag.name}`}
-            onError={() => setFailedLogo(businessLogo)}
-            className="max-h-14 max-w-full object-contain"
-          />
-        </div>
-      ) : (
-        <div className={`mx-auto mb-5 flex h-20 w-20 items-center justify-center rounded-2xl text-3xl font-black shadow-lg ${dark ? 'bg-white text-blue-700' : 'bg-[#19211d] text-white'}`}>{(business?.name || tag.name).charAt(0).toUpperCase()}</div>
-      ))}
-      {systemBranded && <img src={logoIsWhite ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'} alt="AvaliaTag" className="h-11 sm:h-14 w-auto max-w-[240px] mx-auto object-contain mb-5" />}
+      {businessBranded && hasBusinessLogo && (
+        <img
+          src={businessLogo}
+          alt={`Logo de ${business?.name || tag.name}`}
+          onError={() => setFailedLogo(businessLogo)}
+          className="mx-auto mb-5 h-auto max-h-24 w-auto max-w-[280px] object-contain drop-shadow-[0_8px_12px_rgba(0,0,0,0.28)]"
+        />
+      )}
+      {systemBranded && <img src={logoIsWhite ? '/brand/logo-horizontal-white-1200.png' : '/brand/logo-horizontal-color-600.png'} alt="AvaliaTag" className="h-11 sm:h-14 w-auto max-w-[240px] mx-auto object-contain mb-5 drop-shadow-[0_6px_10px_rgba(0,0,0,0.2)]" />}
       <div className={`inline-flex mx-auto items-center gap-2 px-3 py-1.5 rounded-full border text-xs font-bold ${eyebrow}`}><GoogleIcon className="w-5 h-5" /><span>Avalie sua experiência no Google</span></div>
       <div className="flex justify-center gap-1.5 my-4">{[1, 2, 3, 4, 5].map((star) => <Star key={star} className="w-7 h-7 fill-amber-400 text-amber-400" />)}</div>
       <h1 className={`text-2xl font-black mb-1 leading-tight ${editorial ? 'font-serif tracking-tight' : ''}`}>{business?.name || tag.name}</h1>
