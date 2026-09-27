@@ -22,6 +22,10 @@ export const Navbar: React.FC = () => {
   const navigate = useNavigate()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
+  const cartDestination = totalCount > 0 ? '/checkout' : '/loja'
+  const cartLabel = totalCount > 0
+    ? `Abrir carrinho com ${totalCount} ${totalCount === 1 ? 'item' : 'itens'}`
+    : 'Abrir loja'
 
   const isHomePage = location.pathname === '/'
   const isPublicPage =
@@ -121,9 +125,10 @@ export const Navbar: React.FC = () => {
 
           <div className="hidden md:flex items-center gap-3">
             <Link
-              to="/loja"
+              to={cartDestination}
               className="relative p-2 text-slate-600 hover:text-blue-600 hover:bg-slate-100 rounded-xl transition"
-              title="Loja / Carrinho de Compras"
+              title={cartLabel}
+              aria-label={cartLabel}
             >
               <ShoppingBag className="w-5 h-5" />
               {totalCount > 0 && (
@@ -211,7 +216,7 @@ export const Navbar: React.FC = () => {
           </div>
 
           <div className="flex md:hidden items-center gap-2">
-            <Link to="/loja" className="relative p-2 text-slate-600">
+            <Link to={cartDestination} aria-label={cartLabel} title={cartLabel} className="relative p-2 text-slate-600">
               <ShoppingBag className="w-5 h-5" />
               {totalCount > 0 && (
                 <span className="absolute -top-1 -right-1 bg-blue-600 text-white text-[10px] font-bold rounded-full w-4 h-4 flex items-center justify-center">
@@ -336,4 +341,3 @@ export const Navbar: React.FC = () => {
     </header>
   )
 }
-
