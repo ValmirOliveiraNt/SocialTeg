@@ -131,6 +131,9 @@ CREATE TABLE IF NOT EXISTS orders (
   shipping_address JSONB NOT NULL,
   tracking_code VARCHAR(100),
   assigned_serials JSONB DEFAULT '[]'::jsonb,
+  provider_transaction_id VARCHAR(100) UNIQUE,
+  pix_code TEXT,
+  paid_at TIMESTAMPTZ,
   created_at TIMESTAMPTZ DEFAULT NOW(),
   updated_at TIMESTAMPTZ DEFAULT NOW()
 );
@@ -266,5 +269,4 @@ VALUES
 ('prod-stand-wood', 'Totem Madeira Nobre Rústica', 'Design sofisticado em madeira maciça com gravação a laser, ideal para cafés, bistrôs e restaurantes sofisticados.', 'https://images.unsplash.com/photo-1513519245088-0e12902e5a38?w=600&auto=format&fit=crop&q=80', 89.90, 42, 'active', '["Madeira Maciça Tratada", "Acabamento fosco acetinado", "Chip NFC de longo alcance", "Gravação a laser personalizada"]'::jsonb),
 ('prod-sticker-nfc', 'Adesivo NFC Resinada Ultra-Resistente', 'Adesivo resinado 3D com camada metálica anti-interferência para colar em cardápios, vidros, mesas ou paredes.', 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?w=600&auto=format&fit=crop&q=80', 29.90, 300, 'active', '["Resina epóxi 3D flexível", "Proteção Anti-Metal", "Adesivo 3M de alta fixação", "À prova de chuva e sol"]'::jsonb)
 ON CONFLICT (id) DO NOTHING;
-
 

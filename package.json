@@ -4,7 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "test:analytics": "node --test --test-isolation=none tests/analytics.test.mjs tests/coupons.test.mjs",
+    "test:analytics": "node --test --test-isolation=none tests/analytics.test.mjs tests/coupons.test.mjs tests/syncpay.test.mjs",
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "oxlint",

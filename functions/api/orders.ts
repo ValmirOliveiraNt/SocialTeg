@@ -1,8 +1,11 @@
 interface Env {
   DB: D1Database
+  SYNCPAY_CLIENT_ID?: string
+  SYNCPAY_CLIENT_SECRET?: string
 }
 import { requireAdmin, requireSession } from '../_lib/session'
 import { validateCoupon } from '../_lib/coupons'
+import { createSyncPayPixCharge } from '../_lib/syncpay'
 
 function shippingFor(zip: unknown): number {
   const clean = typeof zip === 'string' ? zip.replace(/\D/g, '') : ''
@@ -57,8 +60,18 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     if (!Array.isArray(data.items) || data.items.length < 1 || data.items.length > 50)
       return Response.json({ error: 'Itens do pedido inválidos' }, { status: 400 })
     const orderId = `ORD-${crypto.randomUUID()}`
-    const method = ['pix', 'credit_card', 'boleto'].includes(data.payment_method) ? data.payment_method : 'pix'
+    if (data.payment_method && data.payment_method !== 'pix')
+      return Response.json({ error: 'No momento, o checkout aceita somente pagamento por Pix.' }, { status: 400 })
+    const method = 'pix'
     const address = data.shipping_address && typeof data.shipping_address === 'object' ? data.shipping_address : {}
+    if (!address.street || !address.number || !address.city || !address.state || !address.zip)
+      return Response.json({ error: 'Endereço de entrega incompleto.' }, { status: 400 })
+    const document = String(data.document || '').replace(/\D/g, '')
+    const phone = String(data.phone || user.phone || '').replace(/\D/g, '')
+    if (![11, 14].includes(document.length))
+      return Response.json({ error: 'Informe um CPF ou CNPJ válido para gerar o Pix.' }, { status: 400 })
+    if (phone.length < 10 || phone.length > 13)
+      return Response.json({ error: 'Informe um telefone válido com DDD para gerar o Pix.' }, { status: 400 })
     const orderItems: Array<{ product: any; quantity: number; total: number }> = []
     let subtotal = 0
     for (const item of data.items) {
@@ -75,14 +88,34 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
     const couponResult = data.coupon_code ? await validateCoupon(context.env.DB, data.coupon_code, subtotal) : null
     const discount = couponResult?.discount || 0
     const total = Math.max(0, subtotal - discount + shipping)
+    if (total < 1) return Response.json({ error: 'O valor mínimo para pagamento por Pix é R$ 1,00.' }, { status: 400 })
+
+    const charge = await createSyncPayPixCharge(context.env, {
+      amount: total,
+      name: user.name,
+      document,
+      email: user.email,
+      phone,
+      description: `Pedido AvaliaTag ${orderId}`,
+      webhookUrl: new URL('/api/syncpay-webhook', context.request.url).toString(),
+    })
+    const transactionId = String(
+      charge.identifier || charge.transaction_id || charge.reference_id || charge.idTransaction || ''
+    )
+    const pixCode = String(
+      charge.pix_code || charge.payment?.pix_code || charge.paymentCode || ''
+    )
+    if (!transactionId || !pixCode.startsWith('000201'))
+      throw new Error('A SyncPay não devolveu uma cobrança Pix válida. Tente novamente em instantes.')
 
     await context.env.DB.prepare(`
-      INSERT INTO orders (id, user_id, user_name, user_email, status, subtotal, discount, shipping, total, payment_status, payment_method, shipping_address, tracking_code, assigned_serials, coupon_id, coupon_code, created_at, updated_at)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
+      INSERT INTO orders (id, user_id, user_name, user_email, status, subtotal, discount, shipping, total, payment_status, payment_method, shipping_address, tracking_code, assigned_serials, coupon_id, coupon_code, provider_transaction_id, pix_code, created_at, updated_at)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, datetime('now'), datetime('now'))
     `).bind(
       orderId,
       user.id, user.name, user.email, 'pending', subtotal, discount, shipping, total,
-      'pending', method, JSON.stringify(address), null, '[]', couponResult?.coupon.id || null, couponResult?.coupon.code || null
+      'pending', method, JSON.stringify(address), null, '[]', couponResult?.coupon.id || null, couponResult?.coupon.code || null,
+      transactionId, pixCode
     ).run()
 
     for (const item of orderItems) {
@@ -106,7 +139,19 @@ export const onRequestPost: PagesFunction<Env> = async (context) => {
       await context.env.DB.prepare(`INSERT INTO coupon_redemptions (id,coupon_id,order_id,user_id,discount_amount) VALUES (?,?,?,?,?)`)
         .bind(`redemption-${crypto.randomUUID()}`,couponResult.coupon.id,orderId,user.id,discount).run()
     }
-    return Response.json({ success: true, orderId, assignedSerials: [], subtotal, discount, shipping, total, coupon_code: couponResult?.coupon.code || null }, { status: 201 })
+    return Response.json({
+      success: true,
+      orderId,
+      assignedSerials: [],
+      subtotal,
+      discount,
+      shipping,
+      total,
+      coupon_code: couponResult?.coupon.code || null,
+      payment_status: 'pending',
+      provider_transaction_id: transactionId,
+      pix_code: pixCode,
+    }, { status: 201 })
   } catch (err: any) {
     return Response.json({ error: err.message }, { status: 400 })
   }
@@ -117,17 +162,19 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     const data: any = await context.request.json()
     if (!data.id) return Response.json({ error: 'ID do pedido obrigatório' }, { status: 400 })
     await requireAdmin(context.request, context.env.DB)
+    const order = await context.env.DB.prepare('SELECT payment_status FROM orders WHERE id=?').bind(data.id).first<{ payment_status: string }>()
+    if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 })
+    if (data.status && ['paid', 'shipped', 'delivered'].includes(data.status) && order.payment_status !== 'approved')
+      return Response.json({ error: 'A SyncPay ainda não confirmou o pagamento deste pedido.' }, { status: 409 })
 
     await context.env.DB.prepare(`
       UPDATE orders
       SET status = COALESCE(?, status),
-          payment_status = COALESCE(?, payment_status),
           tracking_code = COALESCE(?, tracking_code),
           updated_at = datetime('now')
       WHERE id = ?
     `).bind(
       data.status ?? null,
-      data.payment_status ?? null,
       data.tracking_code ?? null,
       data.id
     ).run()

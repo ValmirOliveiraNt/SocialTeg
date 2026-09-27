@@ -7,7 +7,6 @@ import {
   Minus,
   ArrowRight,
   ShieldCheck,
-  CreditCard,
   QrCode,
   MapPin,
   User as UserIcon,
@@ -55,12 +54,7 @@ export const CheckoutPage: React.FC = () => {
     zip: '',
   })
 
-  const [paymentMethod, setPaymentMethod] = useState<'pix' | 'credit_card'>('pix')
-  const [cardHolder, setCardHolder] = useState('')
-  const [cardNumber, setCardNumber] = useState('')
-  const [cardExpiry, setCardExpiry] = useState('')
-  const [cardCvv, setCardCvv] = useState('')
-  const [installments, setInstallments] = useState(1)
+  const [payerDocument, setPayerDocument] = useState('')
   const [couponCode, setCouponCode] = useState('')
   const [appliedCoupon, setAppliedCoupon] = useState<CouponValidation | null>(null)
   const [couponLoading, setCouponLoading] = useState(false)
@@ -178,6 +172,16 @@ export const CheckoutPage: React.FC = () => {
   const handleFinishPayment = async () => {
     if (!currentUser) return
     setError(null)
+    const document = payerDocument.replace(/\D/g, '')
+    const phone = (userPhone || currentUser.phone || '').replace(/\D/g, '')
+    if (![11, 14].includes(document.length)) {
+      setError('Informe um CPF ou CNPJ válido para gerar o Pix.')
+      return
+    }
+    if (phone.length < 10 || phone.length > 13) {
+      setError('Informe um telefone válido com DDD para gerar o Pix.')
+      return
+    }
     setLoading(true)
 
     try {
@@ -186,18 +190,10 @@ export const CheckoutPage: React.FC = () => {
         items.map((i) => ({ productId: i.product.id, quantity: i.quantity })),
         address,
         {
-          method: paymentMethod,
+          method: 'pix',
+          document,
+          phone,
           couponCode: appliedCoupon?.code,
-          cardDetails:
-            paymentMethod === 'credit_card'
-              ? {
-                  holderName: cardHolder,
-                  cardNumber,
-                  expiry: cardExpiry,
-                  cvv: cardCvv,
-                  installments,
-                }
-              : undefined,
         }
       )
 
@@ -539,8 +535,8 @@ export const CheckoutPage: React.FC = () => {
               <div className="bg-white rounded-3xl p-6 sm:p-8 border border-slate-200 shadow-xs">
                 <div className="flex items-center justify-between pb-4 mb-6 border-b border-slate-100">
                   <div className="flex items-center gap-2">
-                    <CreditCard className="w-5 h-5 text-blue-600" />
-                    <h2 className="text-lg font-bold text-slate-900">Método de Pagamento</h2>
+                    <QrCode className="w-5 h-5 text-emerald-600" />
+                    <h2 className="text-lg font-bold text-slate-900">Pagamento por Pix</h2>
                   </div>
                   <button
                     type="button"
@@ -551,125 +547,51 @@ export const CheckoutPage: React.FC = () => {
                   </button>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4 mb-6">
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('pix')}
-                    className={`p-4 rounded-2xl border-2 text-left transition cursor-pointer ${
-                      paymentMethod === 'pix'
-                        ? 'border-emerald-500 bg-emerald-50/50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
+                <div className="mb-6 rounded-2xl border-2 border-emerald-500 bg-emerald-50/50 p-4">
                     <div className="flex items-center justify-between mb-2">
                       <QrCode className="w-6 h-6 text-emerald-600" />
-                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Instantâneo</span>
+                      <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">Única opção disponível</span>
                     </div>
-                    <div className="font-bold text-sm text-slate-900">PIX Instantâneo</div>
-                    <div className="text-[11px] text-slate-500">Aprovação em segundos</div>
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() => setPaymentMethod('credit_card')}
-                    className={`p-4 rounded-2xl border-2 text-left transition cursor-pointer ${
-                      paymentMethod === 'credit_card'
-                        ? 'border-blue-500 bg-blue-50/50'
-                        : 'border-slate-200 hover:border-slate-300'
-                    }`}
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <CreditCard className="w-6 h-6 text-blue-600" />
-                      <span className="text-[10px] font-bold bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full">
-                        Até 12x
-                      </span>
-                    </div>
-                    <div className="font-bold text-sm text-slate-900">Cartão de Crédito</div>
-                    <div className="text-[11px] text-slate-500">Liberação imediata</div>
-                  </button>
+                    <div className="font-bold text-sm text-slate-900">PIX via SyncPay</div>
+                    <div className="text-[11px] text-slate-500">QR Code real e confirmação automática após o pagamento</div>
                 </div>
 
-                {paymentMethod === 'pix' && (
-                  <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 mb-6 text-xs text-emerald-900 space-y-2">
-                    <div className="font-bold flex items-center gap-1.5">
-                      <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                      <span>Pagamento seguro por PIX</span>
-                    </div>
-                    <p className="text-[11px] leading-relaxed">
-                      Ao clicar em finalizar, o QR Code dinâmico do PIX e a chave Copia e Cola serão gerados. Os seriais de ativação das suas Tags serão liberados instantaneamente.
-                    </p>
+                <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2">
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">CPF ou CNPJ do pagador</label>
+                    <input
+                      type="text"
+                      required
+                      inputMode="numeric"
+                      value={payerDocument}
+                      onChange={(event) => setPayerDocument(event.target.value.replace(/\D/g, '').slice(0, 14))}
+                      placeholder="Somente números"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-hidden"
+                    />
                   </div>
-                )}
-
-                {paymentMethod === 'credit_card' && (
-                  <div className="space-y-4 mb-6">
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                        Número do Cartão
-                      </label>
-                      <input
-                        type="text"
-                        value={cardNumber}
-                        onChange={(e) => setCardNumber(e.target.value)}
-                        className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                      />
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                        Nome Impresso no Cartão
-                      </label>
-                      <input
-                        type="text"
-                        value={cardHolder}
-                        onChange={(e) => setCardHolder(e.target.value)}
-                        className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden uppercase"
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                          Validade
-                        </label>
-                        <input
-                          type="text"
-                          value={cardExpiry}
-                          onChange={(e) => setCardExpiry(e.target.value)}
-                          placeholder="MM/AA"
-                          className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                        />
-                      </div>
-                      <div>
-                        <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                          CVV
-                        </label>
-                        <input
-                          type="text"
-                          value={cardCvv}
-                          onChange={(e) => setCardCvv(e.target.value)}
-                          placeholder="123"
-                          className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                        />
-                      </div>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-semibold text-slate-700 mb-1 uppercase">
-                        Parcelamento
-                      </label>
-                      <select
-                        value={installments}
-                        onChange={(e) => setInstallments(Number(e.target.value))}
-                        className="w-full px-3 py-2 text-sm bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden"
-                      >
-                        <option value={1}>1x de R$ {finalTotal.toFixed(2)} (sem juros)</option>
-                        <option value={2}>2x de R$ {(finalTotal / 2).toFixed(2)} (sem juros)</option>
-                        <option value={3}>3x de R$ {(finalTotal / 3).toFixed(2)} (sem juros)</option>
-                      </select>
-                    </div>
+                  <div>
+                    <label className="mb-1 block text-xs font-semibold uppercase text-slate-700">Telefone com DDD</label>
+                    <input
+                      type="tel"
+                      required
+                      inputMode="tel"
+                      value={userPhone}
+                      onChange={(event) => setUserPhone(event.target.value)}
+                      placeholder="(84) 99999-9999"
+                      className="w-full rounded-xl border border-slate-300 bg-slate-50 px-3 py-2 text-sm focus:bg-white focus:outline-hidden"
+                    />
                   </div>
-                )}
+                </div>
+
+                <div className="p-4 rounded-2xl bg-emerald-50/70 border border-emerald-200 mb-6 text-xs text-emerald-900 space-y-2">
+                  <div className="font-bold flex items-center gap-1.5">
+                    <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                    <span>Confirmação segura pela SyncPay</span>
+                  </div>
+                  <p className="text-[11px] leading-relaxed">
+                    O pedido ficará como aguardando pagamento. A produção e a liberação ocorrerão somente depois que a SyncPay confirmar o Pix pelo webhook seguro.
+                  </p>
+                </div>
 
                 <button
                   type="button"
@@ -679,7 +601,7 @@ export const CheckoutPage: React.FC = () => {
                 >
                   <ShieldCheck className="w-5 h-5" />
                   <span>
-                    {loading ? 'Processando Pagamento...' : `Pagar R$ ${finalTotal.toFixed(2).replace('.', ',')}`}
+                    {loading ? 'Gerando Pix na SyncPay...' : `Gerar Pix de R$ ${finalTotal.toFixed(2).replace('.', ',')}`}
                   </span>
                 </button>
               </div>

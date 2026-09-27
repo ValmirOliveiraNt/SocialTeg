@@ -165,7 +165,7 @@ export interface TagScan {
 
 export type OrderStatus = 'pending' | 'paid' | 'shipped' | 'delivered' | 'cancelled'
 export type PaymentStatus = 'pending' | 'approved' | 'failed' | 'refunded'
-export type PaymentMethod = 'pix' | 'credit_card' | 'boleto'
+export type PaymentMethod = 'pix'
 
 export interface OrderItem {
   id: string
@@ -205,6 +205,9 @@ export interface Order {
   assigned_serials?: string[]
   coupon_id?: string
   coupon_code?: string
+  provider_transaction_id?: string
+  pix_code?: string
+  paid_at?: string
 }
 
 export interface Coupon {

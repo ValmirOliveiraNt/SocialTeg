@@ -324,7 +324,7 @@ export const api = {
     async getById(id: string): Promise<Order | null> {
       return request<Order | null>(`/api/orders?id=${encodeURIComponent(id)}`)
     },
-    async create(orderData: any): Promise<{ success: boolean; orderId: string; assignedSerials: string[]; subtotal: number; discount: number; shipping: number; total: number; coupon_code?: string }> {
+    async create(orderData: any): Promise<{ success: boolean; orderId: string; assignedSerials: string[]; subtotal: number; discount: number; shipping: number; total: number; coupon_code?: string; payment_status: 'pending'; provider_transaction_id: string; pix_code: string }> {
       return request('/api/orders', {
         method: 'POST',
         body: JSON.stringify(orderData),

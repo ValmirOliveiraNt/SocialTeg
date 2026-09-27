@@ -130,11 +130,18 @@ CREATE TABLE IF NOT EXISTS orders (
   assigned_serials TEXT,
   coupon_id TEXT,
   coupon_code TEXT,
+  provider_transaction_id TEXT,
+  pix_code TEXT,
+  paid_at TEXT,
   created_at TEXT NOT NULL DEFAULT (datetime('now')),
   updated_at TEXT NOT NULL DEFAULT (datetime('now')),
   FOREIGN KEY (user_id) REFERENCES users(id),
   FOREIGN KEY (coupon_id) REFERENCES coupons(id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_orders_provider_transaction
+  ON orders(provider_transaction_id)
+  WHERE provider_transaction_id IS NOT NULL;
 
 CREATE TABLE IF NOT EXISTS order_items (
   id TEXT PRIMARY KEY,

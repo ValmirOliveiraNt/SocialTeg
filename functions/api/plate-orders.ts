@@ -92,6 +92,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
     const data: any = await context.request.json()
     const allowed = ['awaiting_payment','paid','in_production','ready','shipped','delivered','tags_linked','cancelled']
     if (!data.id || (data.status && !allowed.includes(data.status))) return Response.json({ error: 'Atualização inválida.' }, { status: 400 })
+    const order = await context.env.DB.prepare('SELECT payment_status FROM plate_orders WHERE id=?').bind(data.id).first<{ payment_status: string }>()
+    if (!order) return Response.json({ error: 'Pedido não encontrado.' }, { status: 404 })
+    if (data.status && !['awaiting_payment', 'cancelled'].includes(data.status) && order.payment_status !== 'approved')
+      return Response.json({ error: 'A SyncPay ainda não confirmou o pagamento deste pedido.' }, { status: 409 })
     await context.env.DB.prepare(`UPDATE plate_orders SET status=COALESCE(?,status),tracking_code=COALESCE(?,tracking_code),assigned_serials=COALESCE(?,assigned_serials),updated_at=datetime('now') WHERE id=?`)
       .bind(data.status ?? null, data.tracking_code ?? null, data.assigned_serials ? JSON.stringify(data.assigned_serials) : null, data.id).run()
     return Response.json({ success: true })

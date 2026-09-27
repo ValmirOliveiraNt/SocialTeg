@@ -1,16 +1,10 @@
-import { OrderItem } from '../types'
 import { api } from './api'
 
 export interface CheckoutPaymentData {
-  method: 'pix' | 'credit_card' | 'boleto'
+  method: 'pix'
+  document: string
+  phone: string
   couponCode?: string
-  cardDetails?: {
-    cardNumber: string
-    holderName: string
-    expiry: string
-    cvv: string
-    installments: number
-  }
 }
 
 export interface PaymentProcessResult {
@@ -48,73 +42,29 @@ export const PaymentGatewayService = {
     address: ShippingAddress,
     payment: CheckoutPaymentData
   ): Promise<PaymentProcessResult> {
-    const user = await api.users.getById(userId)
-    if (!user) {
-      throw new Error('Usuário não encontrado.')
-    }
-
-    const products = await api.products.getAll()
-    const orderItems: OrderItem[] = []
-    let subtotal = 0
-
-    for (const item of items) {
-      const product = products.find((p) => p.id === item.productId)
-      if (!product) {
-        throw new Error(`Produto não encontrado: ${item.productId}`)
-      }
-      const itemTotal = product.price * item.quantity
-      subtotal += itemTotal
-      orderItems.push({
-        id: 'item-' + Date.now() + '-' + Math.random().toString(36).substring(2, 7),
-        order_id: '',
-        product_id: product.id,
-        product_name: product.name,
-        quantity: item.quantity,
-        unit_price: product.price,
-        total: itemTotal,
-      })
-    }
-
-    const shipping = this.calculateShipping(address.zip, items.length)
-    const discount = 0
-    const total = Math.max(0, subtotal + shipping)
-
-    const orderId = 'ORD-' + Date.now().toString().slice(-6)
-    orderItems.forEach((it) => (it.order_id = orderId))
-
     const res = await api.orders.create({
-      id: orderId,
-      user_id: user.id,
-      user_name: user.name,
-      user_email: user.email,
-      status: 'paid',
-      subtotal,
-      discount,
-      shipping,
-      total,
-      payment_status: 'approved',
-      payment_method: payment.method,
+      payment_method: 'pix',
+      document: payment.document,
+      phone: payment.phone,
       coupon_code: payment.couponCode || undefined,
       shipping_address: address,
-      items: orderItems,
+      items: items.map((item) => ({ product_id: item.productId, quantity: item.quantity })),
     })
 
     await api.logs.add({
-      user_id: user.id,
-      user_email: user.email,
-      action: 'CREATE_ORDER',
+      user_id: userId,
+      action: 'CREATE_PIX_ORDER',
       entity_type: 'order',
-      entity_id: orderId,
-      details: `Pedido ${orderId} concluído com sucesso via ${payment.method.toUpperCase()} no valor de R$ ${Number(res.total ?? total).toFixed(2)}.`,
+      entity_id: res.orderId,
+      details: `Pedido ${res.orderId} criado e aguardando confirmação do Pix pela SyncPay no valor de R$ ${Number(res.total).toFixed(2)}.`,
     })
 
     return {
       success: true,
-      transactionId: 'TX-' + Math.random().toString(36).substring(2, 10).toUpperCase(),
-      orderId: res.orderId || orderId,
-      pixQrCode: 'https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=00020126580014br.gov.bcb.pix0136avaliatag-pagamento@banco.com.br520400005303986540' + total.toFixed(2),
-      pixCopiaECola: '00020126580014br.gov.bcb.pix0136avaliatag-pagamento@banco.com.br520400005303986540' + total.toFixed(2) + '5802BR5915AVALIATAG6009SAOPAULO62070503***6304ABCD',
-      message: 'Pagamento processado com sucesso!',
+      transactionId: res.provider_transaction_id,
+      orderId: res.orderId,
+      pixCopiaECola: res.pix_code,
+      message: 'Cobrança Pix criada. Aguardando pagamento.',
     }
   }
 }
