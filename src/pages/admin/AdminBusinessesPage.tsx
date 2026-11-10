@@ -33,6 +33,53 @@ const formatCep = (value: string) => {
   return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
 }
 
+const parseAddress = (full: string) => {
+  if (!full) return { street: '', number: '', neighborhood: '', complement: '' }
+  let street = full.trim()
+  let complement = ''
+  let neighborhood = ''
+  let number = ''
+
+  const compMatch = street.match(/\((.*?)\)/)
+  if (compMatch) {
+    complement = compMatch[1].trim()
+    street = street.replace(/\(.*?\)/, '').trim()
+  }
+
+  if (street.includes(' - ')) {
+    const parts = street.split(' - ')
+    street = parts[0].trim()
+    neighborhood = parts.slice(1).join(' - ').trim()
+  }
+
+  if (street.includes(',')) {
+    const parts = street.split(',')
+    street = parts[0].trim()
+    number = parts.slice(1).join(',').trim()
+    number = number.replace(/^n[º°]\s*/i, '').trim()
+  }
+
+  return { street, number, neighborhood, complement }
+}
+
+const buildFullAddress = (street: string, number: string, neighborhood: string, complement: string) => {
+  const parts: string[] = []
+  if (street.trim()) {
+    let s = street.trim()
+    if (number.trim()) {
+      s += `, ${number.trim()}`
+    }
+    parts.push(s)
+  }
+  if (neighborhood.trim()) {
+    parts.push(`- ${neighborhood.trim()}`)
+  }
+  if (complement.trim()) {
+    parts.push(`(${complement.trim()})`)
+  }
+  return parts.join(' ').trim()
+}
+
 export const AdminBusinessesPage: React.FC = () => {
   const [businesses, setBusinesses] = useState<Business[]>([])
   const [users, setUsers] = useState<User[]>([])
@@ -50,6 +97,7 @@ export const AdminBusinessesPage: React.FC = () => {
 
   // Referência para focar no campo de proprietário quando clicar em "Vincular"
   const ownerSelectRef = useRef<HTMLSelectElement | null>(null)
+  const numberInputRef = useRef<HTMLInputElement | null>(null)
 
   // Campos do formulário de negócio
   const [ownerId, setOwnerId] = useState('')
@@ -61,7 +109,10 @@ export const AdminBusinessesPage: React.FC = () => {
   const [cep, setCep] = useState('')
   const [cepLoading, setCepLoading] = useState(false)
   const [cepMessage, setCepMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
-  const [address, setAddress] = useState('')
+  const [street, setStreet] = useState('')
+  const [number, setNumber] = useState('')
+  const [neighborhood, setNeighborhood] = useState('')
+  const [complement, setComplement] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
   const [logoUrl, setLogoUrl] = useState('')
@@ -82,10 +133,15 @@ export const AdminBusinessesPage: React.FC = () => {
 
     try {
       const found = await api.address.lookupCep(digits)
-      const streetPart = [found.street, found.neighborhood].filter(Boolean).join(' - ')
 
-      if (streetPart) {
-        setAddress(streetPart)
+      if (found.street) {
+        setStreet(found.street)
+      }
+      if (found.neighborhood) {
+        setNeighborhood(found.neighborhood)
+      }
+      if (found.complement) {
+        setComplement(found.complement)
       }
       if (found.city) {
         setCity(found.city)
@@ -96,10 +152,11 @@ export const AdminBusinessesPage: React.FC = () => {
 
       setCepMessage({
         type: 'success',
-        text: found.street
-          ? 'Endereço encontrado! Complete agora com o número e complemento.'
-          : 'Cidade e UF encontradas! Preencha a rua, bairro e número.',
+        text: 'Endereço encontrado! Informe agora o número do local.',
       })
+
+      // Foca automaticamente no campo de número
+      setTimeout(() => numberInputRef.current?.focus(), 120)
     } catch (err: any) {
       setCepMessage({
         type: 'error',
@@ -163,7 +220,10 @@ export const AdminBusinessesPage: React.FC = () => {
     setCep('')
     setCepLoading(false)
     setCepMessage(null)
-    setAddress('')
+    setStreet('')
+    setNumber('')
+    setNeighborhood('')
+    setComplement('')
     setCity('')
     setState('')
     setLogoUrl('')
@@ -186,7 +246,11 @@ export const AdminBusinessesPage: React.FC = () => {
     setCep('')
     setCepLoading(false)
     setCepMessage(null)
-    setAddress(biz.address || '')
+    const parsed = parseAddress(biz.address || '')
+    setStreet(parsed.street)
+    setNumber(parsed.number)
+    setNeighborhood(parsed.neighborhood)
+    setComplement(parsed.complement)
     setCity(biz.city || '')
     setState(biz.state || '')
     setLogoUrl(biz.logo_url || '')
@@ -232,10 +296,21 @@ export const AdminBusinessesPage: React.FC = () => {
       setFormError('O nome do negócio é obrigatório.')
       return
     }
-    if (!address.trim() || !city.trim() || !state.trim()) {
-      setFormError('Endereço, cidade e UF são obrigatórios.')
+    if (!street.trim()) {
+      setFormError('O logradouro/rua é obrigatório.')
       return
     }
+    if (!number.trim()) {
+      setFormError('O número do endereço é obrigatório (use S/N se não houver).')
+      numberInputRef.current?.focus()
+      return
+    }
+    if (!city.trim() || !state.trim()) {
+      setFormError('Cidade e UF são obrigatórios.')
+      return
+    }
+
+    const fullAddress = buildFullAddress(street, number, neighborhood, complement)
 
     setLoading(true)
 
@@ -247,7 +322,7 @@ export const AdminBusinessesPage: React.FC = () => {
       phone: phone.trim(),
       email: email.trim(),
       website: website.trim(),
-      address: address.trim(),
+      address: fullAddress,
       city: city.trim(),
       state: state.trim().toUpperCase(),
       country: 'Brasil',
@@ -740,32 +815,74 @@ export const AdminBusinessesPage: React.FC = () => {
                   )}
                 </div>
 
-                <div>
-                  <label className="block font-semibold text-slate-700 mb-1">Endereço Completo *</label>
-                  <input
-                    type="text"
-                    value={address}
-                    onChange={(e) => setAddress(e.target.value)}
-                    required
-                    placeholder="Ex.: Rua Rio Cajupiranga, 120 - Emaus"
-                    className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden"
-                  />
+                {/* Linha 1: Logradouro / Rua e Número */}
+                <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
+                  <div className="sm:col-span-3">
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">Logradouro / Rua *</label>
+                    <input
+                      type="text"
+                      value={street}
+                      onChange={(e) => setStreet(e.target.value)}
+                      required
+                      placeholder="Ex.: Avenida Aeroporto Augusto Severo"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm"
+                    />
+                  </div>
+                  <div className="sm:col-span-1">
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">Número *</label>
+                    <input
+                      ref={numberInputRef}
+                      type="text"
+                      value={number}
+                      onChange={(e) => setNumber(e.target.value)}
+                      required
+                      placeholder="Ex.: 120 ou S/N"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm font-medium"
+                    />
+                  </div>
                 </div>
 
+                {/* Linha 2: Bairro e Complemento */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">Bairro</label>
+                    <input
+                      type="text"
+                      value={neighborhood}
+                      onChange={(e) => setNeighborhood(e.target.value)}
+                      placeholder="Ex.: Emaús ou Centro"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm"
+                    />
+                  </div>
+                  <div>
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                      Complemento <span className="font-normal text-slate-400">(opcional)</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={complement}
+                      onChange={(e) => setComplement(e.target.value)}
+                      placeholder="Ex.: Sala 102, Loja 3"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm"
+                    />
+                  </div>
+                </div>
+
+                {/* Linha 3: Cidade e UF */}
                 <div className="grid grid-cols-3 gap-2">
                   <div className="col-span-2">
-                    <label className="block font-semibold text-slate-700 mb-1">Cidade *</label>
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">Cidade *</label>
                     <input
                       type="text"
                       value={city}
                       onChange={(e) => setCity(e.target.value)}
                       required
                       placeholder="Ex.: Parnamirim"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm"
                     />
                   </div>
                   <div>
-                    <label className="block font-semibold text-slate-700 mb-1">UF *</label>
+                    <label className="block font-semibold text-slate-700 mb-1 text-xs">UF *</label>
                     <input
                       type="text"
                       maxLength={2}
@@ -773,7 +890,7 @@ export const AdminBusinessesPage: React.FC = () => {
                       onChange={(e) => setState(e.target.value.toUpperCase())}
                       required
                       placeholder="RN"
-                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden uppercase"
+                      className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden uppercase text-sm"
                     />
                   </div>
                 </div>
