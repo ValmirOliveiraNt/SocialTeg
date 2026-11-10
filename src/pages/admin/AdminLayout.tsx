@@ -12,6 +12,7 @@ import {
   LayoutDashboard,
   CreditCard,
   TicketPercent,
+  Building2,
 } from 'lucide-react'
 import { useAuth } from '../../context/AuthContext'
 import { BrandLogo } from '../../components/BrandLogo'
@@ -25,6 +26,7 @@ export const AdminLayout: React.FC = () => {
   const navItems = [
     { label: 'Visão Geral Global', path: '/admin', icon: LayoutDashboard },
     { label: 'Gestão de Clientes', path: '/admin/clients', icon: Users },
+    { label: 'Gestão de Negócios', path: '/admin/businesses', icon: Building2 },
     { label: 'Assinaturas & Coletas', path: '/admin/subscriptions', icon: CreditCard },
     { label: 'Estoque & Tags NFC', path: '/admin/tags', icon: Radio },
     { label: 'Gestão de Pedidos', path: '/admin/orders', icon: ShoppingBag },

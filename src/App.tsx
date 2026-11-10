@@ -22,6 +22,7 @@ import { CustomerPlansPage } from './pages/dashboard/CustomerPlansPage'
 import { AdminLayout } from './pages/admin/AdminLayout'
 import { AdminOverviewPage } from './pages/admin/AdminOverviewPage'
 import { AdminClientsPage } from './pages/admin/AdminClientsPage'
+import { AdminBusinessesPage } from './pages/admin/AdminBusinessesPage'
 import { AdminTagsPage } from './pages/admin/AdminTagsPage'
 import { AdminOrdersPage } from './pages/admin/AdminOrdersPage'
 import { AdminProductsPage } from './pages/admin/AdminProductsPage'
@@ -94,6 +95,7 @@ export function App() {
             >
               <Route index element={<AdminOverviewPage />} />
               <Route path="clients" element={<AdminClientsPage />} />
+              <Route path="businesses" element={<AdminBusinessesPage />} />
               <Route path="subscriptions" element={<AdminSubscriptionsPage />} />
               <Route path="tags" element={<AdminTagsPage />} />
               <Route path="orders" element={<AdminOrdersPage />} />

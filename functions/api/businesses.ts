@@ -127,7 +127,10 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       return Response.json({ error: 'ID do estabelecimento obrigatório' }, { status: 400 })
     }
 
-    await requireBusinessAccess(context.request, context.env.DB, data.id)
+    const user = await requireBusinessAccess(context.request, context.env.DB, data.id)
+    if (user.role === 'admin' && typeof data.owner_id === 'string' && data.owner_id.trim()) {
+      await context.env.DB.prepare('UPDATE businesses SET owner_id = ? WHERE id = ?').bind(data.owner_id, data.id).run()
+    }
     const menuUrl = data.menuUrl !== undefined ? data.menuUrl : (data.menu_url !== undefined ? data.menu_url : null)
     const googleReviewsUrl = data.googleReviewsUrl !== undefined ? data.googleReviewsUrl : (data.google_reviews_url !== undefined ? data.google_reviews_url : null)
     const instagramUrl = data.instagramUrl !== undefined ? data.instagramUrl : (data.instagram_url !== undefined ? data.instagram_url : null)
