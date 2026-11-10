@@ -16,7 +16,7 @@ export interface User {
 
 export interface Business {
   id: string
-  owner_id: string
+  owner_id?: string | null
   name: string
   description: string
   logo_url: string

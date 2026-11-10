@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import React, { useState, useEffect, useMemo, useRef } from 'react'
 import {
   Building2,
   Search,
@@ -7,18 +7,15 @@ import {
   Edit2,
   Trash2,
   SlidersHorizontal,
-  ExternalLink,
   MapPin,
   Phone,
-  Mail,
-  Globe,
   Radio,
   X,
   AlertCircle,
-  CheckCircle2,
   Upload,
-  ImageIcon,
-  Sparkles,
+  UserCheck,
+  UserX,
+  UserPlus,
 } from 'lucide-react'
 import { Business, User, NFCTag } from '../../types'
 import { api } from '../../services/api'
@@ -43,6 +40,9 @@ export const AdminBusinessesPage: React.FC = () => {
   const [configBusiness, setConfigBusiness] = useState<Business | null>(null)
   const [loading, setLoading] = useState(false)
   const [formError, setFormError] = useState<string | null>(null)
+
+  // Referência para focar no campo de proprietário quando clicar em "Vincular"
+  const ownerSelectRef = useRef<HTMLSelectElement | null>(null)
 
   // Campos do formulário de negócio
   const [ownerId, setOwnerId] = useState('')
@@ -77,14 +77,23 @@ export const AdminBusinessesPage: React.FC = () => {
         (b.address && b.address.toLowerCase().includes(term)) ||
         (owner && (owner.name.toLowerCase().includes(term) || owner.email.toLowerCase().includes(term)))
 
-      const matchOwner = ownerFilter === 'all' || b.owner_id === ownerFilter
+      const matchOwner =
+        ownerFilter === 'all'
+          ? true
+          : ownerFilter === 'unassigned'
+          ? !b.owner_id || !owner
+          : b.owner_id === ownerFilter
+
       return matchSearch && matchOwner
     })
   }, [businesses, users, searchTerm, ownerFilter])
 
+  const unassignedCount = businesses.filter((b) => !b.owner_id || !users.some((u) => u.id === b.owner_id)).length
+  const assignedCount = businesses.length - unassignedCount
+
   const handleOpenCreate = () => {
     setEditingBiz(null)
-    setOwnerId(users[0]?.id || '')
+    setOwnerId('') // Sem proprietário por padrão (opcional)
     setName('')
     setDescription('')
     setPhone('')
@@ -102,9 +111,9 @@ export const AdminBusinessesPage: React.FC = () => {
     setModalOpen(true)
   }
 
-  const handleOpenEdit = (biz: Business) => {
+  const handleOpenEdit = (biz: Business, focusOwner = false) => {
     setEditingBiz(biz)
-    setOwnerId(biz.owner_id || users[0]?.id || '')
+    setOwnerId(biz.owner_id || '')
     setName(biz.name || '')
     setDescription(biz.description || '')
     setPhone(biz.phone || '')
@@ -120,6 +129,10 @@ export const AdminBusinessesPage: React.FC = () => {
     setMenuUrl(biz.menu_url || biz.menuUrl || '')
     setFormError(null)
     setModalOpen(true)
+
+    if (focusOwner) {
+      setTimeout(() => ownerSelectRef.current?.focus(), 150)
+    }
   }
 
   const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -148,10 +161,6 @@ export const AdminBusinessesPage: React.FC = () => {
     e.preventDefault()
     setFormError(null)
 
-    if (!ownerId) {
-      setFormError('Selecione o cliente responsável pelo negócio.')
-      return
-    }
     if (!name.trim()) {
       setFormError('O nome do negócio é obrigatório.')
       return
@@ -165,7 +174,7 @@ export const AdminBusinessesPage: React.FC = () => {
 
     const payload: Partial<Business> = {
       ...(editingBiz ? { id: editingBiz.id } : {}),
-      owner_id: ownerId,
+      owner_id: ownerId.trim() || undefined,
       name: name.trim(),
       description: description.trim(),
       phone: phone.trim(),
@@ -187,13 +196,14 @@ export const AdminBusinessesPage: React.FC = () => {
 
     try {
       await api.businesses.save(payload)
+      const selectedOwner = users.find((u) => u.id === ownerId)
       await api.logs.add({
         action: editingBiz ? 'ADMIN_UPDATE_BUSINESS' : 'ADMIN_CREATE_BUSINESS',
         entity_type: 'business',
         entity_id: editingBiz?.id || 'new',
         details: editingBiz
-          ? `Estabelecimento "${payload.name}" atualizado pelo administrador.`
-          : `Novo estabelecimento "${payload.name}" cadastrado pelo administrador.`,
+          ? `Estabelecimento "${payload.name}" atualizado pelo administrador.${selectedOwner ? ` Proprietário: ${selectedOwner.name}.` : ' Sem proprietário.'}`
+          : `Novo estabelecimento "${payload.name}" cadastrado pelo administrador.${selectedOwner ? ` Proprietário: ${selectedOwner.name}.` : ' Sem proprietário (pré-cadastro).'}`
       })
       setModalOpen(false)
       setRefreshTrigger((prev) => prev + 1)
@@ -228,7 +238,6 @@ export const AdminBusinessesPage: React.FC = () => {
 
   const totalBusinesses = businesses.length
   const totalLinkedTags = tags.filter((t) => t.business_id).length
-  const businessesWithTags = businesses.filter((b) => tags.some((t) => t.business_id === b.id)).length
 
   return (
     <div className="space-y-6">
@@ -239,7 +248,7 @@ export const AdminBusinessesPage: React.FC = () => {
             <span>Gestão Global de Negócios</span>
           </h1>
           <p className="text-xs text-slate-500 mt-1">
-            Cadastre, edite e controle todos os negócios, pontos comerciais e experiências das tags dos clientes.
+            Cadastre empresas com ou sem proprietário, configure links do Google e vincule contas de clientes quando quiser.
           </p>
         </div>
 
@@ -253,7 +262,7 @@ export const AdminBusinessesPage: React.FC = () => {
       </div>
 
       {/* Cards de Métricas */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
           <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Total de Negócios</span>
           <div className="text-2xl font-black text-slate-900 mt-1">{totalBusinesses}</div>
@@ -261,15 +270,30 @@ export const AdminBusinessesPage: React.FC = () => {
         </div>
 
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Com Tags Ativas</span>
-          <div className="text-2xl font-black text-blue-600 mt-1">{businessesWithTags}</div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Com pelo menos 1 tag física associada</p>
+          <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-600 flex items-center gap-1">
+            <UserCheck className="w-3.5 h-3.5" />
+            <span>Vinculados a Clientes</span>
+          </span>
+          <div className="text-2xl font-black text-slate-900 mt-1">{assignedCount}</div>
+          <p className="text-[10px] text-slate-400 mt-0.5">Com proprietário ativo</p>
         </div>
 
-        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs sm:col-span-2 lg:col-span-1">
-          <span className="text-[11px] font-bold uppercase tracking-wider text-slate-400">Tags NFC em Operação</span>
-          <div className="text-2xl font-black text-emerald-600 mt-1">{totalLinkedTags}</div>
-          <p className="text-[10px] text-slate-400 mt-0.5">Distribuídas entre os negócios</p>
+        <div className="bg-white p-5 rounded-2xl border border-amber-200 bg-amber-50/20 shadow-2xs">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-amber-700 flex items-center gap-1">
+            <UserX className="w-3.5 h-3.5" />
+            <span>Sem Dono (Aguardando)</span>
+          </span>
+          <div className="text-2xl font-black text-amber-800 mt-1">{unassignedCount}</div>
+          <p className="text-[10px] text-amber-600/80 mt-0.5">Prontos para vincular a contas</p>
+        </div>
+
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-2xs">
+          <span className="text-[11px] font-bold uppercase tracking-wider text-blue-600 flex items-center gap-1">
+            <Radio className="w-3.5 h-3.5" />
+            <span>Tags NFC em Operação</span>
+          </span>
+          <div className="text-2xl font-black text-blue-600 mt-1">{totalLinkedTags}</div>
+          <p className="text-[10px] text-slate-400 mt-0.5">Associadas a estabelecimentos</p>
         </div>
       </div>
 
@@ -293,12 +317,18 @@ export const AdminBusinessesPage: React.FC = () => {
             onChange={(e) => setOwnerFilter(e.target.value)}
             className="px-3 py-2 text-xs bg-slate-50 border border-slate-200 rounded-xl font-medium text-slate-700"
           >
-            <option value="all">Todos os Clientes ({businesses.length} negócios)</option>
-            {users.map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({businesses.filter((b) => b.owner_id === u.id).length})
-              </option>
-            ))}
+            <option value="all">Todos os Negócios ({businesses.length})</option>
+            {unassignedCount > 0 && (
+              <option value="unassigned">⚠️ Sem proprietário ({unassignedCount})</option>
+            )}
+            {users.map((u) => {
+              const count = businesses.filter((b) => b.owner_id === u.id).length
+              return (
+                <option key={u.id} value={u.id}>
+                  {u.name} ({count})
+                </option>
+              )
+            })}
           </select>
         </div>
       </div>
@@ -355,7 +385,21 @@ export const AdminBusinessesPage: React.FC = () => {
                             <div className="text-[10px] text-slate-400">{owner.email}</div>
                           </div>
                         ) : (
-                          <span className="text-slate-400 italic">Cliente não encontrado</span>
+                          <div className="space-y-1">
+                            <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-50 text-amber-700 border border-amber-200">
+                              Sem proprietário
+                            </span>
+                            <div>
+                              <button
+                                type="button"
+                                onClick={() => handleOpenEdit(biz, true)}
+                                className="text-[11px] text-blue-600 hover:text-blue-800 font-bold hover:underline cursor-pointer flex items-center gap-1"
+                              >
+                                <UserPlus className="w-3 h-3" />
+                                <span>Vincular cliente</span>
+                              </button>
+                            </div>
+                          </div>
                         )}
                       </td>
 
@@ -463,7 +507,7 @@ export const AdminBusinessesPage: React.FC = () => {
                   {editingBiz ? 'Editar Negócio / Estabelecimento' : 'Novo Negócio / Estabelecimento'}
                 </h3>
                 <p className="text-xs text-slate-500">
-                  Defina o cliente proprietário, dados de localização e links oficiais.
+                  Cadastre empresas com ou sem proprietário para vincular a contas de clientes quando quiser.
                 </p>
               </div>
             </div>
@@ -476,17 +520,20 @@ export const AdminBusinessesPage: React.FC = () => {
             )}
 
             <form onSubmit={handleSaveBusiness} className="space-y-4 text-xs">
-              <div>
-                <label className="block font-semibold text-slate-700 mb-1 uppercase tracking-wider text-[11px]">
-                  Cliente Proprietário *
+              <div className="p-3 bg-blue-50/50 rounded-2xl border border-blue-100 space-y-1">
+                <label className="block font-semibold text-slate-700 uppercase tracking-wider text-[11px]">
+                  Cliente Proprietário (Opcional)
                 </label>
+                <p className="text-[11px] text-slate-500">
+                  Você pode deixar em branco para pré-cadastrar a empresa. Posteriormente, assim que o cliente criar a conta dele, você poderá vincular esta empresa a ele para que ele mesmo faça as alterações.
+                </p>
                 <select
+                  ref={ownerSelectRef}
                   value={ownerId}
                   onChange={(e) => setOwnerId(e.target.value)}
-                  required
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-300 rounded-xl focus:bg-white focus:outline-hidden font-medium"
+                  className="mt-1.5 w-full px-3 py-2.5 bg-white border border-slate-300 rounded-xl focus:outline-hidden font-medium text-slate-800"
                 >
-                  <option value="" disabled>Selecione um cliente...</option>
+                  <option value="">Sem proprietário definido (Aguardando vínculo futuro)</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.email})

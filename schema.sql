@@ -14,7 +14,7 @@ CREATE TABLE IF NOT EXISTS users (
 
 CREATE TABLE IF NOT EXISTS businesses (
   id TEXT PRIMARY KEY,
-  owner_id TEXT NOT NULL,
+  owner_id TEXT,
   name TEXT NOT NULL,
   description TEXT,
   logo_url TEXT,
