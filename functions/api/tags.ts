@@ -173,20 +173,29 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
       if (user.role !== 'admin') return Response.json({ error: 'Acesso restrito' }, { status: 403 })
       const ids = [...new Set(data.ids.filter((id: unknown) => typeof id === 'string'))].slice(0, 200)
       if (!ids.length) return Response.json({ error: 'Nenhuma Tag válida informada' }, { status: 400 })
-      const statements = ids.map((id: string, index: number) => {
+      const statements: D1PreparedStatement[] = []
+      for (let index = 0; index < ids.length; index++) {
+        const id = ids[index]
         if (data.operation === 'return_to_stock') {
-          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = NULL, business_id = NULL, configuration_mode = 'business', status = 'available', location = 'Estoque', activated_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id)
-        }
-        if (data.operation === 'assign') {
+          statements.push(
+            context.env.DB.prepare(`UPDATE tag_destinations SET is_active = 0, updated_at = datetime('now') WHERE tag_id = ?`).bind(id)
+          )
+          statements.push(
+            context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = NULL, business_id = NULL, configuration_mode = 'business', status = 'available', location = 'Estoque Fabril', activated_at = NULL, updated_at = datetime('now') WHERE id = ?`).bind(id)
+          )
+        } else if (data.operation === 'assign') {
           const location = data.location_mode === 'sequence'
             ? `${String(data.location_prefix || 'Ponto').trim()} ${String(Number(data.location_start || 1) + index).padStart(2, '0')}`
             : String(data.location || 'Ponto principal').trim()
-          return context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, configuration_mode = 'business', status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
+          statements.push(
+            context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, configuration_mode = 'business', status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
+          )
+        } else {
+          throw new Error('Operação em lote inválida')
         }
-        throw new Error('Operação em lote inválida')
-      })
+      }
       await context.env.DB.batch(statements)
-      return Response.json({ success: true, count: statements.length })
+      return Response.json({ success: true, count: ids.length })
     }
     if (!data.id) {
       return Response.json({ error: 'ID da Tag obrigatório' }, { status: 400 })

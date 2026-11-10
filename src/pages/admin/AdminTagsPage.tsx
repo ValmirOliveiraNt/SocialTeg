@@ -267,6 +267,28 @@ export const AdminTagsPage: React.FC = () => {
     }
   }
 
+  const handleReturnSingleTagToStock = async (tag: NFCTag) => {
+    if (
+      !confirm(
+        `Deseja realmente desvincular a Tag "${tag.name}" (Serial: ${tag.serial_number}) do cliente e deixá-la disponível em estoque novamente?\n\nO histórico de leituras será preservado.`
+      )
+    )
+      return
+
+    try {
+      await api.tags.bulkUpdate({ ids: [tag.id], operation: 'return_to_stock' })
+      await api.logs.add({
+        action: 'RETURN_TAG_TO_STOCK',
+        entity_type: 'nfc_tag',
+        entity_id: tag.id,
+        details: `Tag ${tag.serial_number} desvinculada do cliente e devolvida ao estoque.`,
+      })
+      setRefreshTrigger((prev) => prev + 1)
+    } catch (error: any) {
+      alert(error?.message || 'Não foi possível devolver a Tag ao estoque.')
+    }
+  }
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -469,6 +491,17 @@ export const AdminTagsPage: React.FC = () => {
                           >
                             <ArrowRightLeft className="w-4 h-4" />
                           </button>
+
+                          {(tag.owner_id || tag.business_id || tag.status !== 'available') && (
+                            <button
+                              type="button"
+                              onClick={() => handleReturnSingleTagToStock(tag)}
+                              title="Desvincular do cliente e devolver ao estoque"
+                              className="p-1.5 text-amber-600 hover:text-white hover:bg-amber-600 rounded-lg cursor-pointer transition shadow-2xs"
+                            >
+                              <Undo2 className="w-4 h-4" />
+                            </button>
+                          )}
 
                           <button
                             type="button"
@@ -705,6 +738,38 @@ export const AdminTagsPage: React.FC = () => {
                 {locationMode === 'same' ? <input value={batchLocation} onChange={(e) => setBatchLocation(e.target.value)} placeholder="Ex.: Balcão principal" className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /> : <div className="grid grid-cols-2 gap-2"><input value={locationPrefix} onChange={(e) => setLocationPrefix(e.target.value)} placeholder="Ex.: Mesa" className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /><input type="number" min={1} value={locationStart} onChange={(e) => setLocationStart(Number(e.target.value))} className="px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl" /></div>}
                 <p className="text-[10px] text-slate-400">Prévia: {locationMode === 'same' ? batchLocation : `${locationPrefix} ${String(locationStart).padStart(2, '0')}, ${locationPrefix} ${String(locationStart + 1).padStart(2, '0')}…`}</p>
               </div>
+
+              {tagToTransfer?.owner_id && (
+                <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2">
+                  <div>
+                    <p className="font-bold text-amber-900 text-xs">Desvincular do cliente atual</p>
+                    <p className="text-[10px] text-amber-700">Remove o proprietário e deixa a Tag disponível em estoque.</p>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={async () => {
+                      if (!confirm(`Desvincular a Tag ${tagToTransfer.serial_number} do cliente e devolvê-la ao estoque?`)) return
+                      try {
+                        await api.tags.bulkUpdate({ ids: [tagToTransfer.id], operation: 'return_to_stock' })
+                        await api.logs.add({
+                          action: 'RETURN_TAG_TO_STOCK',
+                          entity_type: 'nfc_tag',
+                          entity_id: tagToTransfer.id,
+                          details: `Tag ${tagToTransfer.serial_number} desvinculada do cliente e devolvida ao estoque.`,
+                        })
+                        setTransferModalOpen(false)
+                        setRefreshTrigger((prev) => prev + 1)
+                      } catch (err: any) {
+                        alert(err?.message || 'Erro ao desvincular Tag.')
+                      }
+                    }}
+                    className="px-3 py-1.5 bg-amber-600 hover:bg-amber-700 text-white rounded-xl font-bold text-xs shrink-0 transition cursor-pointer flex items-center gap-1"
+                  >
+                    <Undo2 className="w-3.5 h-3.5" />
+                    <span>Devolver ao Estoque</span>
+                  </button>
+                </div>
+              )}
 
               <div className="pt-2 flex justify-end gap-2">
                 <button
