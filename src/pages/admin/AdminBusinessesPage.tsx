@@ -16,6 +16,8 @@ import {
   UserCheck,
   UserX,
   UserPlus,
+  Loader2,
+  CheckCircle2,
 } from 'lucide-react'
 import { Business, User, NFCTag } from '../../types'
 import { api } from '../../services/api'
@@ -25,6 +27,11 @@ import { GoogleIcon } from '../../components/GoogleIcon'
 import { InstagramIcon } from '../../components/InstagramIcon'
 import { SavingIndicator } from '../../components/SavingIndicator'
 import { imageFileToDataUrl } from '../../utils/imageUpload'
+
+const formatCep = (value: string) => {
+  const digits = value.replace(/\D/g, '').slice(0, 8)
+  return digits.length > 5 ? `${digits.slice(0, 5)}-${digits.slice(5)}` : digits
+}
 
 export const AdminBusinessesPage: React.FC = () => {
   const [businesses, setBusinesses] = useState<Business[]>([])
@@ -51,6 +58,9 @@ export const AdminBusinessesPage: React.FC = () => {
   const [phone, setPhone] = useState('')
   const [email, setEmail] = useState('')
   const [website, setWebsite] = useState('')
+  const [cep, setCep] = useState('')
+  const [cepLoading, setCepLoading] = useState(false)
+  const [cepMessage, setCepMessage] = useState<{ type: 'success' | 'error' | 'info'; text: string } | null>(null)
   const [address, setAddress] = useState('')
   const [city, setCity] = useState('')
   const [state, setState] = useState('')
@@ -59,6 +69,57 @@ export const AdminBusinessesPage: React.FC = () => {
   const [googleReviewsUrl, setGoogleReviewsUrl] = useState('')
   const [instagramUrl, setInstagramUrl] = useState('')
   const [menuUrl, setMenuUrl] = useState('')
+
+  const executeCepLookup = async (cepToLookup: string) => {
+    const digits = cepToLookup.replace(/\D/g, '')
+    if (digits.length !== 8) {
+      setCepMessage({ type: 'error', text: 'Informe um CEP válido com 8 dígitos.' })
+      return
+    }
+
+    setCepLoading(true)
+    setCepMessage({ type: 'info', text: 'Buscando endereço pelo CEP...' })
+
+    try {
+      const found = await api.address.lookupCep(digits)
+      const streetPart = [found.street, found.neighborhood].filter(Boolean).join(' - ')
+
+      if (streetPart) {
+        setAddress(streetPart)
+      }
+      if (found.city) {
+        setCity(found.city)
+      }
+      if (found.state) {
+        setState(found.state.toUpperCase())
+      }
+
+      setCepMessage({
+        type: 'success',
+        text: found.street
+          ? 'Endereço encontrado! Complete agora com o número e complemento.'
+          : 'Cidade e UF encontradas! Preencha a rua, bairro e número.',
+      })
+    } catch (err: any) {
+      setCepMessage({
+        type: 'error',
+        text: err?.message || 'CEP não encontrado. Preencha os campos manualmente.',
+      })
+    } finally {
+      setCepLoading(false)
+    }
+  }
+
+  const handleCepChange = (value: string) => {
+    const formatted = formatCep(value)
+    setCep(formatted)
+    setCepMessage(null)
+
+    const digits = formatted.replace(/\D/g, '')
+    if (digits.length === 8) {
+      executeCepLookup(formatted)
+    }
+  }
 
   useEffect(() => {
     api.businesses.getAll().then(setBusinesses).catch(() => {})
@@ -99,9 +160,12 @@ export const AdminBusinessesPage: React.FC = () => {
     setPhone('')
     setEmail('')
     setWebsite('')
+    setCep('')
+    setCepLoading(false)
+    setCepMessage(null)
     setAddress('')
-    setCity('São Paulo')
-    setState('SP')
+    setCity('')
+    setState('')
     setLogoUrl('')
     setCoverUrl('')
     setGoogleReviewsUrl('')
@@ -119,6 +183,9 @@ export const AdminBusinessesPage: React.FC = () => {
     setPhone(biz.phone || '')
     setEmail(biz.email || '')
     setWebsite(biz.website || '')
+    setCep('')
+    setCepLoading(false)
+    setCepMessage(null)
     setAddress(biz.address || '')
     setCity(biz.city || '')
     setState(biz.state || '')
@@ -613,9 +680,66 @@ export const AdminBusinessesPage: React.FC = () => {
               </div>
 
               <div className="p-3.5 bg-slate-50 rounded-2xl border border-slate-200 space-y-3">
-                <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
-                  Endereço & Localização
-                </span>
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-slate-800 text-[11px] uppercase tracking-wider block">
+                    Endereço & Localização
+                  </span>
+                  {cepLoading && (
+                    <span className="text-[11px] text-blue-600 font-medium flex items-center gap-1">
+                      <Loader2 className="w-3 h-3 animate-spin" /> Buscando CEP...
+                    </span>
+                  )}
+                </div>
+
+                {/* Busca Automática por CEP */}
+                <div>
+                  <label className="block font-semibold text-slate-700 mb-1 text-xs">
+                    Buscar por CEP <span className="font-normal text-slate-500">(preenche endereço automaticamente)</span>
+                  </label>
+                  <div className="flex gap-2">
+                    <div className="relative flex-1">
+                      <input
+                        type="text"
+                        value={cep}
+                        onChange={(e) => handleCepChange(e.target.value)}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.preventDefault()
+                            executeCepLookup(cep)
+                          }
+                        }}
+                        placeholder="Ex.: 59149-000"
+                        maxLength={9}
+                        className="w-full px-3 py-2 bg-white border border-slate-300 rounded-xl focus:outline-hidden text-sm"
+                      />
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => executeCepLookup(cep)}
+                      disabled={cepLoading || cep.replace(/\D/g, '').length < 8}
+                      className="px-3.5 py-2 bg-blue-600 hover:bg-blue-700 disabled:bg-slate-200 disabled:text-slate-400 text-white font-bold text-xs rounded-xl flex items-center gap-1.5 transition-colors shrink-0 shadow-xs cursor-pointer disabled:cursor-not-allowed"
+                    >
+                      {cepLoading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Search className="w-3.5 h-3.5" />}
+                      <span>Buscar CEP</span>
+                    </button>
+                  </div>
+                  {cepMessage && (
+                    <p
+                      className={`text-[11px] mt-1.5 flex items-center gap-1.5 ${
+                        cepMessage.type === 'success'
+                          ? 'text-emerald-700 font-medium'
+                          : cepMessage.type === 'error'
+                          ? 'text-rose-600 font-medium'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      {cepMessage.type === 'success' && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />}
+                      {cepMessage.type === 'error' && <AlertCircle className="w-3.5 h-3.5 text-rose-500 shrink-0" />}
+                      <span>{cepMessage.text}</span>
+                    </p>
+                  )}
+                </div>
+
                 <div>
                   <label className="block font-semibold text-slate-700 mb-1">Endereço Completo *</label>
                   <input
