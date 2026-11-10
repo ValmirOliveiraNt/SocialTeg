@@ -178,6 +178,9 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
         const id = ids[index]
         if (data.operation === 'return_to_stock') {
           statements.push(
+            context.env.DB.prepare(`DELETE FROM tag_scans WHERE tag_id = ?`).bind(id)
+          )
+          statements.push(
             context.env.DB.prepare(`UPDATE tag_destinations SET is_active = 0, updated_at = datetime('now') WHERE tag_id = ?`).bind(id)
           )
           statements.push(

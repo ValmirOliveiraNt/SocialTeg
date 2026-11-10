@@ -256,10 +256,10 @@ export const AdminTagsPage: React.FC = () => {
 
   const handleReturnToStock = async () => {
     const ids = selectedTags.map((tag) => tag.id)
-    if (!ids.length || !confirm(`Desvincular ${ids.length} Tag(s) e devolvê-las ao estoque? O histórico de leituras será preservado.`)) return
+    if (!ids.length || !confirm(`Desvincular ${ids.length} Tag(s) e devolvê-las ao estoque? O contador de leituras (scans) será zerado.`)) return
     try {
       await api.tags.bulkUpdate({ ids, operation: 'return_to_stock' })
-      await api.logs.add({ action: 'BULK_RETURN_TAGS_TO_STOCK', entity_type: 'nfc_tag', entity_id: 'batch', details: `${ids.length} Tag(s) devolvida(s) ao estoque com o histórico preservado.` })
+      await api.logs.add({ action: 'BULK_RETURN_TAGS_TO_STOCK', entity_type: 'nfc_tag', entity_id: 'batch', details: `${ids.length} Tag(s) devolvida(s) ao estoque e contador de leituras zerado.` })
       setSelectedTagIds(new Set())
       setRefreshTrigger((value) => value + 1)
     } catch (error: any) {
@@ -270,7 +270,7 @@ export const AdminTagsPage: React.FC = () => {
   const handleReturnSingleTagToStock = async (tag: NFCTag) => {
     if (
       !confirm(
-        `Deseja realmente desvincular a Tag "${tag.name}" (Serial: ${tag.serial_number}) do cliente e deixá-la disponível em estoque novamente?\n\nO histórico de leituras será preservado.`
+        `Deseja realmente desvincular a Tag "${tag.name}" (Serial: ${tag.serial_number}) do cliente e deixá-la disponível em estoque novamente?\n\nO contador de leituras (scans) desta tag será zerado.`
       )
     )
       return
@@ -281,7 +281,7 @@ export const AdminTagsPage: React.FC = () => {
         action: 'RETURN_TAG_TO_STOCK',
         entity_type: 'nfc_tag',
         entity_id: tag.id,
-        details: `Tag ${tag.serial_number} desvinculada do cliente e devolvida ao estoque.`,
+        details: `Tag ${tag.serial_number} desvinculada do cliente, devolvida ao estoque e leituras zeradas.`,
       })
       setRefreshTrigger((prev) => prev + 1)
     } catch (error: any) {
