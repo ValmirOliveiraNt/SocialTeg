@@ -191,7 +191,7 @@ export const onRequestPut: PagesFunction<Env> = async (context) => {
             ? `${String(data.location_prefix || 'Ponto').trim()} ${String(Number(data.location_start || 1) + index).padStart(2, '0')}`
             : String(data.location || 'Ponto principal').trim()
           statements.push(
-            context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, configuration_mode = 'business', status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id, data.business_id || null, location, id)
+            context.env.DB.prepare(`UPDATE nfc_tags SET owner_id = ?, business_id = ?, configuration_mode = 'business', status = 'active', location = ?, activated_at = COALESCE(activated_at, datetime('now')), updated_at = datetime('now') WHERE id = ?`).bind(data.owner_id || null, data.business_id || null, location, id)
           )
         } else {
           throw new Error('Operação em lote inválida')

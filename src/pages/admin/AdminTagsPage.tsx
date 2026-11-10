@@ -81,7 +81,14 @@ export const AdminTagsPage: React.FC = () => {
 
   const selectedTags = filteredTags.filter((tag) => selectedTagIds.has(tag.id))
   const allFilteredSelected = filteredTags.length > 0 && selectedTags.length === filteredTags.length
-  const targetBusinesses = businesses.filter((business) => business.owner_id === targetOwnerId)
+  const unassignedBusinesses = useMemo(
+    () => businesses.filter((b) => !b.owner_id || !users.some((u) => u.id === b.owner_id)),
+    [businesses, users]
+  )
+  const targetBusinesses = useMemo(
+    () => (targetOwnerId ? businesses.filter((business) => business.owner_id === targetOwnerId) : []),
+    [businesses, targetOwnerId]
+  )
 
   const toggleSelection = (id: string) => setSelectedTagIds((current) => {
     const next = new Set(current)
@@ -219,35 +226,55 @@ export const AdminTagsPage: React.FC = () => {
 
   const handleOpenTransfer = (tag: NFCTag) => {
     setTagToTransfer(tag)
-    const ownerId = tag.owner_id || users[0]?.id || ''
+    const ownerId = tag.owner_id || ''
     setTargetOwnerId(ownerId)
-    setTargetBusinessId(tag.business_id || businesses.find((business) => business.owner_id === ownerId)?.id || '')
+    setTargetBusinessId(tag.business_id || '')
     setTransferModalOpen(true)
   }
 
   const handleOpenBatchTransfer = () => {
     setTagToTransfer(null)
-    const ownerId = users[0]?.id || ''
-    setTargetOwnerId(ownerId)
-    setTargetBusinessId(businesses.find((business) => business.owner_id === ownerId)?.id || '')
+    setTargetOwnerId('')
+    setTargetBusinessId('')
     setTransferModalOpen(true)
   }
 
   const handleSaveTransfer = async (e: React.FormEvent) => {
     e.preventDefault()
     const ids = tagToTransfer ? [tagToTransfer.id] : selectedTags.map((tag) => tag.id)
-    if (!ids.length || !targetOwnerId) return
+    if (!ids.length) return
+    if (!targetOwnerId && !targetBusinessId) {
+      alert('Selecione um cliente destinatário ou um estabelecimento para associar a tag.')
+      return
+    }
 
     const targetUser = users.find((u) => u.id === targetOwnerId)
+    const targetBiz = businesses.find((b) => b.id === targetBusinessId)
+    const descParts = [
+      targetBiz ? `ao estabelecimento "${targetBiz.name}"` : '',
+      targetUser ? `do cliente ${targetUser.name}` : '(sem usuário cadastrado)',
+    ].filter(Boolean).join(' ')
+
     try {
-      await api.tags.bulkUpdate({ ids, operation: 'assign', owner_id: targetOwnerId, business_id: targetBusinessId || undefined, location_mode: locationMode, location: batchLocation, location_prefix: locationPrefix, location_start: locationStart })
+      await api.tags.bulkUpdate({
+        ids,
+        operation: 'assign',
+        owner_id: targetOwnerId || undefined,
+        business_id: targetBusinessId || undefined,
+        location_mode: locationMode,
+        location: batchLocation,
+        location_prefix: locationPrefix,
+        location_start: locationStart,
+      })
       await api.logs.add({
         action: ids.length > 1 ? 'BULK_ASSIGN_TAGS' : 'TRANSFER_TAG',
         entity_type: 'nfc_tag',
         entity_id: ids.length > 1 ? 'batch' : ids[0],
-        details: `${ids.length} Tag(s) vinculada(s) ao cliente ${targetUser?.name}.`,
+        details: `${ids.length} Tag(s) vinculada(s) ${descParts}.`,
       })
-    } catch {}
+    } catch (err: any) {
+      alert(err?.message || 'Erro ao vincular tag(s)')
+    }
 
     setTransferModalOpen(false)
     setSelectedTagIds(new Set())
@@ -417,6 +444,12 @@ export const AdminTagsPage: React.FC = () => {
                           <div>
                             <div className="font-semibold text-slate-900">{owner.name}</div>
                             <div className="text-[10px] text-slate-400">{owner.email}</div>
+                          </div>
+                        ) : biz ? (
+                          <div>
+                            <span className="text-amber-800 bg-amber-50 px-2 py-0.5 rounded-full text-[10px] font-semibold border border-amber-200">
+                              Sem usuário (Avulso)
+                            </span>
                           </div>
                         ) : (
                           <span className="text-slate-400 italic">Disponível em Estoque</span>
@@ -706,13 +739,21 @@ export const AdminTagsPage: React.FC = () => {
             <form onSubmit={handleSaveTransfer} className="space-y-4 text-xs">
               <div>
                 <label className="block font-semibold text-slate-700 mb-1 uppercase">
-                  Selecione o Cliente Destinatário
+                  Selecione o Cliente Destinatário <span className="font-normal text-slate-400 lowercase">(opcional)</span>
                 </label>
                 <select
                   value={targetOwnerId}
-                  onChange={(e) => { const ownerId = e.target.value; setTargetOwnerId(ownerId); setTargetBusinessId(businesses.find((business) => business.owner_id === ownerId)?.id || '') }}
+                  onChange={(e) => {
+                    const ownerId = e.target.value
+                    setTargetOwnerId(ownerId)
+                    if (ownerId) {
+                      const firstBiz = businesses.find((business) => business.owner_id === ownerId)
+                      if (firstBiz) setTargetBusinessId(firstBiz.id)
+                    }
+                  }}
                   className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden"
                 >
+                  <option value="">Sem proprietário (Negócio avulso / Pré-cadastrado)</option>
                   {users.map((u) => (
                     <option key={u.id} value={u.id}>
                       {u.name} ({u.email})
@@ -722,10 +763,59 @@ export const AdminTagsPage: React.FC = () => {
               </div>
 
               <div>
-                <label className="block font-semibold text-slate-700 mb-1 uppercase">Estabelecimento</label>
-                <select value={targetBusinessId} onChange={(e) => setTargetBusinessId(e.target.value)} className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden">
+                <label className="block font-semibold text-slate-700 mb-1 uppercase">
+                  Estabelecimento / Negócio
+                </label>
+                <select
+                  value={targetBusinessId}
+                  onChange={(e) => {
+                    const bId = e.target.value
+                    setTargetBusinessId(bId)
+                    const biz = businesses.find((b) => b.id === bId)
+                    if (biz) {
+                      setTargetOwnerId(biz.owner_id || '')
+                    }
+                  }}
+                  className="w-full px-3 py-2 text-xs bg-slate-50 border border-slate-300 rounded-xl focus:outline-hidden"
+                >
                   <option value="">Sem estabelecimento definido</option>
-                  {targetBusinesses.map((business) => <option key={business.id} value={business.id}>{business.name}</option>)}
+
+                  {unassignedBusinesses.length > 0 && (
+                    <optgroup label="🏢 Negócios sem usuário cadastrado">
+                      {unassignedBusinesses.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.name} (Sem usuário vinculado)
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  {targetOwnerId && targetBusinesses.length > 0 && (
+                    <optgroup label="🏢 Estabelecimentos deste cliente">
+                      {targetBusinesses.map((business) => (
+                        <option key={business.id} value={business.id}>
+                          {business.name}
+                        </option>
+                      ))}
+                    </optgroup>
+                  )}
+
+                  <optgroup label="🏢 Outros estabelecimentos">
+                    {businesses
+                      .filter(
+                        (business) =>
+                          !unassignedBusinesses.some((ub) => ub.id === business.id) &&
+                          !targetBusinesses.some((tb) => tb.id === business.id)
+                      )
+                      .map((business) => {
+                        const owner = users.find((u) => u.id === business.owner_id)
+                        return (
+                          <option key={business.id} value={business.id}>
+                            {business.name} {owner ? `(Cliente: ${owner.name})` : ''}
+                          </option>
+                        )
+                      })}
+                  </optgroup>
                 </select>
               </div>
 
@@ -739,11 +829,11 @@ export const AdminTagsPage: React.FC = () => {
                 <p className="text-[10px] text-slate-400">Prévia: {locationMode === 'same' ? batchLocation : `${locationPrefix} ${String(locationStart).padStart(2, '0')}, ${locationPrefix} ${String(locationStart + 1).padStart(2, '0')}…`}</p>
               </div>
 
-              {tagToTransfer?.owner_id && (
+              {(tagToTransfer?.owner_id || tagToTransfer?.business_id) && (
                 <div className="p-3 rounded-2xl bg-amber-50 border border-amber-200 flex items-center justify-between gap-2">
                   <div>
-                    <p className="font-bold text-amber-900 text-xs">Desvincular do cliente atual</p>
-                    <p className="text-[10px] text-amber-700">Remove o proprietário e deixa a Tag disponível em estoque.</p>
+                    <p className="font-bold text-amber-900 text-xs">Desvincular e devolver ao estoque</p>
+                    <p className="text-[10px] text-amber-700">Remove qualquer vínculo com cliente ou estabelecimento e zera leituras.</p>
                   </div>
                   <button
                     type="button"
