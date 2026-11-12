@@ -7,6 +7,7 @@ import { SavingIndicator } from './SavingIndicator'
 import { InstagramIcon } from './InstagramIcon'
 import { BusinessAvatar } from './BusinessAvatar'
 import { imageFileToDataUrl } from '../utils/imageUpload'
+import { PixIcon } from './PixIcon'
 
 type ChannelKey = 'google' | 'instagram' | 'whatsapp' | 'menu' | 'contact' | 'address' | 'ifood' | 'youtube' | 'custom'
 
@@ -58,6 +59,11 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
     wifi_password: initial.wifi_password || '',
     wifi_security: initial.wifi_security || 'WPA',
     wifi_hidden: initial.wifi_hidden ?? false,
+    pix_enabled: initial.pix_enabled ?? false,
+    pix_key: initial.pix_key || '',
+    pix_name: initial.pix_name || business.name || '',
+    pix_city: initial.pix_city || business.city || '',
+    pix_description: initial.pix_description || '',
     custom_enabled: initial.custom_enabled ?? false,
     custom_url: initial.custom_url || '',
     custom_label: initial.custom_label || 'Saiba mais',
@@ -69,7 +75,7 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
   const [processingImage, setProcessingImage] = useState<'logo' | 'cover' | null>(null)
 
   const update = (key: string, value: any) => setConfig((current) => ({ ...current, [key]: value }))
-  const enabledCount = channels.filter((channel) => Boolean(config[channel.enabledKey])).length + (config.wifi_enabled ? 1 : 0)
+  const enabledCount = channels.filter((channel) => Boolean(config[channel.enabledKey])).length + (config.wifi_enabled ? 1 : 0) + (config.pix_enabled ? 1 : 0)
 
   const handleImageFile = async (file: File | undefined, kind: 'logo' | 'cover') => {
     if (!file) return
@@ -114,6 +120,10 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
       setError('Informe a senha da rede Wi-Fi ou selecione “Sem senha”.')
       return
     }
+    if (config.pix_enabled && !String(config.pix_key || '').trim()) {
+      setError('Informe a chave Pix ou o código Copia e Cola para ativar o botão de Pix.')
+      return
+    }
     const rawContact = String(config.contact_url || '').trim()
     const contact = rawContact.includes('@') && !rawContact.includes('://') ? `mailto:${rawContact}` : /^\+?[\d\s().-]+$/.test(rawContact) ? `tel:${rawContact.replace(/[^\d+]/g, '')}` : withHttps(rawContact)
     const rawAddress = String(config.address_url || '').trim()
@@ -130,6 +140,11 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
       address_url: address,
       ifood_url: preview.ifood,
       youtube_url: preview.youtube,
+      pix_enabled: Boolean(config.pix_enabled),
+      pix_key: String(config.pix_key || '').trim(),
+      pix_name: String(config.pix_name || '').trim(),
+      pix_city: String(config.pix_city || '').trim(),
+      pix_description: String(config.pix_description || '').trim(),
       custom_url: preview.custom,
       custom_label: String(config.custom_label || '').trim() || 'Saiba mais',
       custom_logo: '',
@@ -143,6 +158,7 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
       [Boolean(normalized.address_enabled), String(normalized.address_url || ''), 'address'],
       [Boolean(normalized.ifood_enabled), String(normalized.ifood_url || ''), 'ifood'],
       [Boolean(normalized.youtube_enabled), String(normalized.youtube_url || ''), 'youtube'],
+      [Boolean(normalized.pix_enabled), String(normalized.pix_key || ''), 'pix'],
       [Boolean(normalized.custom_enabled), String(normalized.custom_url || ''), 'custom_url'],
     ]
     const primary = candidates.find(([enabled, value]) => enabled && Boolean(value))
@@ -220,6 +236,81 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
                 <div className="flex items-start justify-between gap-3"><div className="flex gap-3"><div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-sky-50 text-sky-700"><Wifi className="h-4 w-4" /></div><div><strong className="block text-xs text-slate-900">Wi-Fi para clientes</strong><span className="text-[11px] text-slate-500">QR Code e cópia dos dados da rede</span></div></div><button type="button" role="switch" aria-checked={Boolean(config.wifi_enabled)} onClick={() => setConfig((current) => ({ ...current, wifi_enabled: !current.wifi_enabled, direct_redirect: current.wifi_enabled ? current.direct_redirect : false }))} className={`relative h-6 w-11 shrink-0 rounded-full transition ${config.wifi_enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}><span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${config.wifi_enabled ? 'left-5' : 'left-0.5'}`} /></button></div>
                 {config.wifi_enabled && <div className="mt-3 space-y-2 border-t border-slate-100 pt-3"><input value={String(config.wifi_ssid || '')} onChange={(event) => update('wifi_ssid', event.target.value)} placeholder="Nome da rede (SSID)" className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs" /><input type="password" autoComplete="new-password" value={String(config.wifi_password || '')} onChange={(event) => update('wifi_password', event.target.value)} placeholder="Senha da rede" disabled={config.wifi_security === 'nopass'} className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs disabled:bg-slate-100" /><div className="grid grid-cols-2 gap-2"><select value={config.wifi_security || 'WPA'} onChange={(event) => update('wifi_security', event.target.value)} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"><input type="checkbox" checked={Boolean(config.wifi_hidden)} onChange={(event) => update('wifi_hidden', event.target.checked)} />Rede oculta</label></div><p className="text-[10px] leading-4 text-amber-700">Recomendado: configure uma rede exclusiva para visitantes.</p></div>}
               </div>
+              <div className={`rounded-2xl border p-4 transition ${config.pix_enabled ? 'border-teal-200 bg-white shadow-sm' : 'border-slate-200 bg-slate-50/70'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex gap-3">
+                    <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-teal-50 text-teal-700">
+                      <PixIcon className="h-4 w-4 text-teal-600" />
+                    </div>
+                    <div>
+                      <strong className="block text-xs text-slate-900">Pagamento com Pix</strong>
+                      <span className="text-[11px] text-slate-500">QR Code, chave e código Pix Copia e Cola</span>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={Boolean(config.pix_enabled)}
+                    onClick={() => update('pix_enabled', !config.pix_enabled)}
+                    className={`relative h-6 w-11 shrink-0 rounded-full transition cursor-pointer ${config.pix_enabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition ${config.pix_enabled ? 'left-5' : 'left-0.5'}`} />
+                  </button>
+                </div>
+                {config.pix_enabled && (
+                  <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Chave Pix ou Código Copia e Cola *
+                      </label>
+                      <input
+                        value={String(config.pix_key || '')}
+                        onChange={(event) => update('pix_key', event.target.value)}
+                        placeholder="CPF, CNPJ, e-mail, celular, chave aleatória ou 000201..."
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs font-mono"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                          Nome do Titular (opcional)
+                        </label>
+                        <input
+                          value={String(config.pix_name || '')}
+                          onChange={(event) => update('pix_name', event.target.value)}
+                          placeholder={business.name || 'Nome do recebedor'}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                          Cidade (opcional)
+                        </label>
+                        <input
+                          value={String(config.pix_city || '')}
+                          onChange={(event) => update('pix_city', event.target.value)}
+                          placeholder={business.city || 'Cidade'}
+                          className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        Descrição / Identificação (opcional)
+                      </label>
+                      <input
+                        value={String(config.pix_description || '')}
+                        onChange={(event) => update('pix_description', event.target.value)}
+                        placeholder="Ex.: Pagamento no balcão, gorjeta, etc."
+                        className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"
+                      />
+                    </div>
+                    <p className="text-[10px] leading-4 text-teal-800 bg-teal-50/70 p-2 rounded-lg border border-teal-100">
+                      💡 O cliente poderá copiar a chave diretamente ou escanear o QR Code oficial do Pix gerado automaticamente.
+                    </p>
+                  </div>
+                )}
+              </div>
             </div>
           </section>
 
@@ -235,7 +326,7 @@ export const BusinessExperienceModal: React.FC<{ business: Business; onClose: ()
             <label className="mt-4 flex items-center gap-2 text-xs font-semibold text-slate-800"><input type="checkbox" checked={Boolean(config.star_rating_incentive)} onChange={(event) => update('star_rating_incentive', event.target.checked)} className="h-4 w-4 accent-blue-600" />Exibir estrelas interativas quando o Google estiver ativo</label>
           </section>
 
-          <section className="rounded-3xl border border-slate-200 p-4"><div className="mb-3 flex items-center justify-between"><strong className="text-xs uppercase tracking-wider text-slate-700">Prévia dos botões</strong><span className="text-[11px] text-slate-500">A logo e a capa vêm dos dados do estabelecimento</span></div><ExternalActions menuUrl={preview.menu} menuEnabled={Boolean(config.menu_enabled)} googleReviewsUrl={preview.google} googleReviewsEnabled={Boolean(config.google_enabled)} instagramUrl={preview.instagram} instagramEnabled={Boolean(config.instagram_enabled)} whatsappUrl={preview.whatsapp} whatsappEnabled={Boolean(config.whatsapp_enabled)} contactUrl={preview.contact} contactEnabled={Boolean(config.contact_enabled)} addressUrl={preview.address} addressEnabled={Boolean(config.address_enabled)} ifoodUrl={preview.ifood} ifoodEnabled={Boolean(config.ifood_enabled)} youtubeUrl={preview.youtube} youtubeEnabled={Boolean(config.youtube_enabled)} wifiEnabled={Boolean(config.wifi_enabled)} wifiSsid={config.wifi_ssid} wifiPassword={config.wifi_password} wifiSecurity={config.wifi_security} wifiHidden={Boolean(config.wifi_hidden)} customUrl={preview.custom} customLabel={String(config.custom_label || 'Saiba mais')} customEnabled={Boolean(config.custom_enabled)} primaryColor={String(config.primary_color || '#2563eb')} /></section>
+          <section className="rounded-3xl border border-slate-200 p-4"><div className="mb-3 flex items-center justify-between"><strong className="text-xs uppercase tracking-wider text-slate-700">Prévia dos botões</strong><span className="text-[11px] text-slate-500">A logo e a capa vêm dos dados do estabelecimento</span></div><ExternalActions menuUrl={preview.menu} menuEnabled={Boolean(config.menu_enabled)} googleReviewsUrl={preview.google} googleReviewsEnabled={Boolean(config.google_enabled)} instagramUrl={preview.instagram} instagramEnabled={Boolean(config.instagram_enabled)} whatsappUrl={preview.whatsapp} whatsappEnabled={Boolean(config.whatsapp_enabled)} contactUrl={preview.contact} contactEnabled={Boolean(config.contact_enabled)} addressUrl={preview.address} addressEnabled={Boolean(config.address_enabled)} ifoodUrl={preview.ifood} ifoodEnabled={Boolean(config.ifood_enabled)} youtubeUrl={preview.youtube} youtubeEnabled={Boolean(config.youtube_enabled)} wifiEnabled={Boolean(config.wifi_enabled)} wifiSsid={config.wifi_ssid} wifiPassword={config.wifi_password} wifiSecurity={config.wifi_security} wifiHidden={Boolean(config.wifi_hidden)} pixEnabled={Boolean(config.pix_enabled)} pixKey={config.pix_key} pixName={config.pix_name || business.name} pixCity={config.pix_city || business.city} pixDescription={config.pix_description} customUrl={preview.custom} customLabel={String(config.custom_label || 'Saiba mais')} customEnabled={Boolean(config.custom_enabled)} primaryColor={String(config.primary_color || '#2563eb')} /></section>
         </div>
 
         <div className="sticky bottom-0 flex justify-end gap-2 border-t border-slate-200 bg-white/95 p-4 backdrop-blur-xl sm:px-6"><button type="button" onClick={onClose} className="rounded-xl px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-100">Cancelar</button><button type="button" disabled={saving} onClick={handleSave} className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-5 py-2.5 text-xs font-black text-white shadow-lg shadow-blue-500/20 hover:bg-blue-700 disabled:opacity-60">{saving ? <SavingIndicator label="Salvando padrão..." /> : <><Save className="h-4 w-4" />Salvar para todas as tags</>}</button></div>

@@ -384,10 +384,15 @@ export const PublicTagRedirectPage: React.FC = () => {
   const youtubeUrl = cfg.youtube_url || (destination?.type === 'youtube' ? destination.target_url : '') || ''
   const youtubeEnabled = cfg.youtube_enabled !== undefined ? Boolean(cfg.youtube_enabled) : destination?.type === 'youtube'
   const wifiEnabled = Boolean(cfg.wifi_enabled && cfg.wifi_ssid)
+  const pixEnabled = Boolean(cfg.pix_enabled && cfg.pix_key)
+  const pixKey = cfg.pix_key || ''
+  const pixName = cfg.pix_name || business?.name || ''
+  const pixCity = cfg.pix_city || business?.city || ''
+  const pixDescription = cfg.pix_description || ''
   const customUrl = cfg.custom_url || (destination?.type === 'custom_url' ? destination.target_url : '') || ''
   const customEnabled = cfg.custom_enabled !== undefined ? Boolean(cfg.custom_enabled) : destination?.type === 'custom_url'
 
-  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, wifiEnabled, customEnabled && customUrl].filter(Boolean).length > 1
+  const hasMultipleActions = [googleEnabled && googleUrl, instagramEnabled && instagramUrl, whatsappEnabled && whatsappUrl, menuEnabled && menuUrl, contactEnabled && contactUrl, addressEnabled && addressUrl, ifoodEnabled && ifoodUrl, youtubeEnabled && youtubeUrl, wifiEnabled, pixEnabled && pixKey, customEnabled && customUrl].filter(Boolean).length > 1
 
   return (
     <div className={`min-h-screen flex flex-col justify-between py-5 px-3 sm:py-8 sm:px-6 ${templateStyles.page}`}>
@@ -538,6 +543,11 @@ export const PublicTagRedirectPage: React.FC = () => {
                 wifiPassword={cfg.wifi_password}
                 wifiSecurity={cfg.wifi_security}
                 wifiHidden={Boolean(cfg.wifi_hidden)}
+                pixEnabled={pixEnabled}
+                pixKey={pixKey}
+                pixName={pixName}
+                pixCity={pixCity}
+                pixDescription={pixDescription}
                 customUrl={customUrl}
                 customLabel={cfg.custom_label}
                 customEnabled={customEnabled}

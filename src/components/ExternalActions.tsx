@@ -1,9 +1,11 @@
 import React, { useState } from 'react'
-import { Copy, ExternalLink, Eye, EyeOff, Link2, MapPin, Phone, ShoppingBag, UtensilsCrossed, Video, Wifi, X } from 'lucide-react'
+import { Check, Copy, ExternalLink, Eye, EyeOff, Link2, MapPin, Phone, ShoppingBag, UtensilsCrossed, Video, Wifi, X } from 'lucide-react'
 import { QRCodeSVG } from 'qrcode.react'
 import { InstagramIcon } from './InstagramIcon'
 import { GoogleIcon } from './GoogleIcon'
 import { WhatsAppIcon } from './WhatsAppIcon'
+import { PixIcon } from './PixIcon'
+import { generatePixPayload, isPixCopiaECola, formatPixKey } from '../utils/pix'
 
 export interface ExternalActionsProps {
   menuUrl?: string | null
@@ -27,6 +29,12 @@ export interface ExternalActionsProps {
   wifiPassword?: string | null
   wifiSecurity?: 'WPA' | 'WEP' | 'nopass'
   wifiHidden?: boolean
+  pixEnabled?: boolean
+  pixKey?: string | null
+  pixName?: string | null
+  pixCity?: string | null
+  pixDescription?: string | null
+  pixAmount?: number | string | null
   customUrl?: string | null
   customLabel?: string | null
   customEnabled?: boolean
@@ -34,7 +42,7 @@ export interface ExternalActionsProps {
   className?: string
   fallbackUrl?: string | null
   fallbackType?: string | null
-  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'wifi' | 'custom_url') => void
+  onAction?: (action: 'google_review' | 'instagram' | 'whatsapp' | 'website' | 'contact' | 'address' | 'ifood' | 'youtube' | 'wifi' | 'pix' | 'custom_url') => void
 }
 
 const escapeWifiValue = (value: string) => value.replace(/([\\;,:"])/g, '\\$1')
@@ -73,6 +81,12 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   wifiPassword,
   wifiSecurity = 'WPA',
   wifiHidden = false,
+  pixEnabled = false,
+  pixKey,
+  pixName,
+  pixCity,
+  pixDescription,
+  pixAmount,
   customUrl,
   customLabel,
   customEnabled = false,
@@ -85,6 +99,34 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   const [wifiOpen, setWifiOpen] = useState(false)
   const [showPassword, setShowPassword] = useState(false)
   const [copied, setCopied] = useState<'network' | 'password' | null>(null)
+
+  const [pixOpen, setPixOpen] = useState(false)
+  const [copiedPix, setCopiedPix] = useState<'key' | 'code' | null>(null)
+
+  const cleanPixKey = pixKey?.trim() || ''
+  const hasPix = Boolean(pixEnabled && cleanPixKey)
+  const isCopiaCola = isPixCopiaECola(cleanPixKey)
+  const pixPayload = hasPix
+    ? generatePixPayload({
+        key: cleanPixKey,
+        name: pixName?.trim() || '',
+        city: pixCity?.trim() || '',
+        description: pixDescription?.trim() || '',
+        amount: pixAmount || undefined,
+      })
+    : ''
+  const displayPixKey = isCopiaCola ? cleanPixKey : formatPixKey(cleanPixKey)
+
+  const copyPix = async (kind: 'key' | 'code', text: string) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      setCopiedPix(kind)
+      window.setTimeout(() => setCopiedPix(null), 2000)
+    } catch {
+      // ignore
+    }
+  }
+
   let cleanMenuUrl = checkValidUrl(menuUrl) ? menuUrl!.trim() : null
   let cleanGoogleUrl = checkValidUrl(googleReviewsUrl) ? googleReviewsUrl!.trim() : null
   let cleanInstagramUrl = checkValidUrl(instagramUrl) ? instagramUrl!.trim() : null
@@ -220,8 +262,9 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
   })
 
   const hasWifi = wifiEnabled && Boolean(cleanWifiSsid)
+  const totalButtons = actions.length + (hasWifi ? 1 : 0) + (hasPix ? 1 : 0)
 
-  if (actions.length === 0 && !hasWifi) {
+  if (totalButtons === 0) {
     return null
   }
 
@@ -233,11 +276,11 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
     >
       <div
         className={`grid gap-2.5 w-full ${
-          actions.length + (hasWifi ? 1 : 0) === 1
+          totalButtons === 1
             ? 'grid-cols-1'
-            : actions.length + (hasWifi ? 1 : 0) === 2
+            : totalButtons === 2
             ? 'grid-cols-1 sm:grid-cols-2'
-            : actions.length + (hasWifi ? 1 : 0) === 3
+            : totalButtons === 3
             ? 'grid-cols-1 sm:grid-cols-3'
             : 'grid-cols-1 sm:grid-cols-2'
         }`}
@@ -258,6 +301,20 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
             <ExternalLink className="w-3.5 h-3.5 opacity-75 shrink-0" aria-hidden="true" />
           </a>
         ))}
+        {hasPix && (
+          <button
+            type="button"
+            onClick={() => { setPixOpen(true); onAction?.('pix') }}
+            className="min-h-[48px] rounded-2xl border border-teal-600 bg-teal-600 px-4 py-3 text-xs font-bold text-white shadow-sm transition hover:-translate-y-0.5 hover:bg-teal-700 hover:shadow-md focus:outline-hidden focus-visible:ring-2 focus-visible:ring-teal-500 focus-visible:ring-offset-2 sm:text-sm cursor-pointer"
+          >
+            <span className="flex items-center justify-center gap-2">
+              <div className="w-5 h-5 bg-white rounded-full flex items-center justify-center p-0.5 shrink-0 shadow-2xs">
+                <PixIcon className="w-3.5 h-3.5 text-teal-600" />
+              </div>
+              Pagar com Pix
+            </span>
+          </button>
+        )}
         {hasWifi && (
           <button
             type="button"
@@ -283,6 +340,134 @@ export const ExternalActions: React.FC<ExternalActionsProps> = ({
             {wifiSecurity !== 'nopass' && <div className="rounded-2xl bg-slate-50 p-3"><span className="text-[10px] font-bold uppercase tracking-wide text-slate-400">Senha</span><div className="mt-1 flex items-center justify-between gap-3"><strong className="min-w-0 break-all font-mono text-sm text-slate-900">{showPassword ? cleanWifiPassword : '••••••••••••'}</strong><div className="flex shrink-0"><button type="button" onClick={() => setShowPassword((value) => !value)} className="rounded-lg p-2 text-slate-500 hover:bg-slate-200" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}>{showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}</button><button type="button" onClick={() => void copyWifi('password', cleanWifiPassword)} className="rounded-lg p-2 text-sky-700 hover:bg-sky-100" aria-label="Copiar senha"><Copy className="h-4 w-4" /></button></div></div>{copied === 'password' && <span className="text-[10px] font-semibold text-emerald-600">Senha copiada</span>}</div>}
           </div>
           <div className="mt-4 rounded-xl border border-amber-200 bg-amber-50 p-3 text-[10px] leading-4 text-amber-800">Use preferencialmente uma rede de convidados. A senha ficará disponível para quem acessar esta página.</div>
+        </section>
+      </div>
+    )}
+    {pixOpen && (
+      <div
+        className="fixed inset-0 z-[90] flex items-center justify-center overflow-y-auto bg-slate-950/70 p-4 backdrop-blur-sm"
+        onMouseDown={(event) => {
+          if (event.target === event.currentTarget) setPixOpen(false)
+        }}
+      >
+        <section
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="pix-dialog-title"
+          className="w-full max-w-sm rounded-3xl border border-slate-200 bg-white p-5 text-left shadow-2xl sm:p-6"
+        >
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-2xl bg-teal-50 text-teal-700 flex items-center justify-center font-bold shrink-0 border border-teal-100">
+                <PixIcon className="w-5 h-5 text-teal-600" />
+              </div>
+              <div>
+                <h2 id="pix-dialog-title" className="text-base font-black text-slate-900">
+                  Pagamento com Pix
+                </h2>
+                <p className="text-[11px] text-slate-500">
+                  {pixName ? pixName : 'Escaneie ou copie os dados abaixo'}
+                </p>
+              </div>
+            </div>
+            <button
+              type="button"
+              aria-label="Fechar modal Pix"
+              onClick={() => setPixOpen(false)}
+              className="rounded-xl p-1.5 text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div className="mx-auto mt-4 w-fit rounded-2xl border border-slate-200 bg-white p-3 shadow-xs">
+            <QRCodeSVG value={pixPayload} size={180} level="M" includeMargin />
+          </div>
+          <p className="mt-1.5 text-center text-[10px] leading-4 text-slate-500 font-medium">
+            Aponte a câmera ou app do banco para pagar
+          </p>
+
+          <div className="mt-4 space-y-2.5">
+            {/* Opção 1: Pix Copia e Cola */}
+            <div className="rounded-2xl border border-teal-100 bg-teal-50/50 p-3 space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold uppercase tracking-wider text-teal-900">
+                  Pix Copia e Cola
+                </span>
+                <span className="text-[10px] text-teal-700 font-medium">Pagar no mesmo celular</span>
+              </div>
+              <p className="max-h-14 overflow-y-auto break-all font-mono text-[10px] text-slate-600 bg-white p-2 rounded-xl border border-teal-200/60 select-all">
+                {pixPayload}
+              </p>
+              <button
+                type="button"
+                onClick={() => copyPix('code', pixPayload)}
+                className={`w-full py-2.5 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition shadow-xs cursor-pointer ${
+                  copiedPix === 'code'
+                    ? 'bg-emerald-600 text-white'
+                    : 'bg-teal-600 hover:bg-teal-700 active:bg-teal-800 text-white'
+                }`}
+              >
+                {copiedPix === 'code' ? (
+                  <>
+                    <Check className="w-3.5 h-3.5 text-white" />
+                    <span>Código Pix Copiado!</span>
+                  </>
+                ) : (
+                  <>
+                    <Copy className="w-3.5 h-3.5" />
+                    <span>Copiar Pix Copia e Cola</span>
+                  </>
+                )}
+              </button>
+            </div>
+
+            {/* Opção 2: Chave Pix Direta (quando não for código 000201) */}
+            {!isCopiaCola && (
+              <div className="rounded-2xl border border-slate-200 bg-slate-50 p-3 space-y-2">
+                <div className="flex items-center justify-between">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-slate-700">
+                    Chave Pix
+                  </span>
+                  {pixDescription && (
+                    <span className="text-[10px] text-slate-500 truncate max-w-[150px]">
+                      {pixDescription}
+                    </span>
+                  )}
+                </div>
+                <div className="flex items-center justify-between gap-2 bg-white px-3 py-2 rounded-xl border border-slate-200">
+                  <strong className="text-xs font-mono text-slate-800 break-all select-all">
+                    {displayPixKey}
+                  </strong>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => copyPix('key', cleanPixKey)}
+                  className={`w-full py-2 px-3 rounded-xl font-bold text-xs flex items-center justify-center gap-1.5 transition border cursor-pointer ${
+                    copiedPix === 'key'
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-300'
+                      : 'bg-white hover:bg-slate-100 text-slate-700 border-slate-300'
+                  }`}
+                >
+                  {copiedPix === 'key' ? (
+                    <>
+                      <Check className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>Chave Pix Copiada!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-3.5 h-3.5 text-slate-500" />
+                      <span>Copiar Chave Pix</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            )}
+          </div>
+
+          <p className="mt-3 text-center text-[10px] text-slate-400">
+            Abra seu banco, escolha Pix e cole o código ou use a câmera.
+          </p>
         </section>
       </div>
     )}

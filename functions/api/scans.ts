@@ -248,6 +248,7 @@ export const onRequestPost: PagesFunction<Env> = async ({ request, env }) => {
       'ifood',
       'youtube',
       'wifi',
+      'pix',
       'custom_url',
     ].includes(data.destination_type)
       ? data.destination_type

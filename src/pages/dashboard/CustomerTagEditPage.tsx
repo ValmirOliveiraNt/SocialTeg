@@ -27,6 +27,7 @@ import {
 } from 'lucide-react'
 import { InstagramIcon } from '../../components/InstagramIcon'
 import { WhatsAppIcon } from '../../components/WhatsAppIcon'
+import { PixIcon } from '../../components/PixIcon'
 import {
   NFCTag,
   Business,
@@ -86,6 +87,11 @@ export const CustomerTagEditPage: React.FC = () => {
   const [wifiPassword, setWifiPassword] = useState('')
   const [wifiSecurity, setWifiSecurity] = useState<'WPA' | 'WEP' | 'nopass'>('WPA')
   const [wifiHidden, setWifiHidden] = useState(false)
+  const [pixEnabled, setPixEnabled] = useState(false)
+  const [pixKey, setPixKey] = useState('')
+  const [pixName, setPixName] = useState('')
+  const [pixCity, setPixCity] = useState('')
+  const [pixDescription, setPixDescription] = useState('')
   const [customEnabled, setCustomEnabled] = useState(false)
   const [customUrl, setCustomUrl] = useState('')
   const [customLabel, setCustomLabel] = useState('Saiba mais')
@@ -207,6 +213,11 @@ export const CustomerTagEditPage: React.FC = () => {
         setWifiPassword(cfg.wifi_password || '')
         setWifiSecurity(cfg.wifi_security || 'WPA')
         setWifiHidden(Boolean(cfg.wifi_hidden))
+        setPixEnabled(Boolean(cfg.pix_enabled))
+        setPixKey(String(cfg.pix_key || ''))
+        setPixName(String(cfg.pix_name || ''))
+        setPixCity(String(cfg.pix_city || ''))
+        setPixDescription(String(cfg.pix_description || ''))
         setCustomUrl(cfg.custom_url || '')
         setCustomLabel(cfg.custom_label || 'Saiba mais')
         setCustomEnabled(Boolean(cfg.custom_enabled))
@@ -256,6 +267,11 @@ export const CustomerTagEditPage: React.FC = () => {
       setIsSaving(false)
       return
     }
+    if (pixEnabled && !pixKey.trim()) {
+      setErrorMessage('Informe a chave Pix ou o código Copia e Cola para ativar esse botão.')
+      setIsSaving(false)
+      return
+    }
 
     // Formatações
     const cleanGoogle = googleUrl.trim()
@@ -293,6 +309,10 @@ export const CustomerTagEditPage: React.FC = () => {
     const cleanIfood = withHttps(ifoodUrl)
     const cleanYoutube = withHttps(youtubeUrl)
     const cleanCustom = withHttps(customUrl)
+    const cleanPixKey = pixKey.trim()
+    const cleanPixName = pixName.trim()
+    const cleanPixCity = pixCity.trim()
+    const cleanPixDescription = pixDescription.trim()
 
     // Determina o tipo e target_url principal (para redirecionamento direto)
     let primaryType: DestinationType = 'google_review'
@@ -322,6 +342,9 @@ export const CustomerTagEditPage: React.FC = () => {
     } else if (youtubeEnabled && cleanYoutube) {
       primaryType = 'youtube'
       primaryTargetUrl = cleanYoutube
+    } else if (pixEnabled && cleanPixKey) {
+      primaryType = 'pix'
+      primaryTargetUrl = cleanPixKey
     } else if (customEnabled && cleanCustom) {
       primaryType = 'custom_url'
       primaryTargetUrl = cleanCustom
@@ -373,10 +396,15 @@ export const CustomerTagEditPage: React.FC = () => {
           wifi_password: wifiSecurity === 'nopass' ? '' : wifiPassword,
           wifi_security: wifiSecurity,
           wifi_hidden: wifiHidden,
+          pix_enabled: pixEnabled,
+          pix_key: cleanPixKey,
+          pix_name: cleanPixName,
+          pix_city: cleanPixCity,
+          pix_description: cleanPixDescription,
           custom_enabled: customEnabled,
           custom_url: cleanCustom,
           custom_label: customLabel.trim() || 'Saiba mais',
-          direct_redirect: wifiEnabled ? false : directRedirect,
+          direct_redirect: (wifiEnabled || pixEnabled) ? false : directRedirect,
           page_template: pageTemplate,
           welcome_title: welcomeTitle,
           welcome_message: welcomeMessage,
@@ -406,7 +434,19 @@ export const CustomerTagEditPage: React.FC = () => {
     }
   }
 
-  const activeButtonsCount = [googleEnabled, instagramEnabled, whatsappEnabled, menuEnabled, contactEnabled, addressEnabled, ifoodEnabled, youtubeEnabled, wifiEnabled, customEnabled].filter(Boolean).length
+  const activeButtonsCount = [
+    googleEnabled,
+    instagramEnabled,
+    whatsappEnabled,
+    menuEnabled,
+    contactEnabled,
+    addressEnabled,
+    ifoodEnabled,
+    youtubeEnabled,
+    wifiEnabled,
+    pixEnabled,
+    customEnabled,
+  ].filter(Boolean).length
 
   const additionalChannels = [
     { id: 'contact', title: 'Contato', description: 'Telefone, e-mail ou página de atendimento', placeholder: 'contato@empresa.com ou (84) 99999-9999', enabled: contactEnabled, setEnabled: setContactEnabled, value: contactValue, setValue: setContactValue, icon: Phone, color: 'text-cyan-700 bg-cyan-50' },
@@ -1011,6 +1051,87 @@ export const CustomerTagEditPage: React.FC = () => {
                 <div className="flex items-start justify-between gap-3"><div className="flex items-start gap-3 min-w-0"><div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-sky-50 text-sky-700"><Wifi className="w-4 h-4" /></div><div><h4 className="text-xs font-bold text-slate-900">Wi-Fi para clientes</h4><p className="text-[11px] leading-relaxed text-slate-500 mt-0.5">Exibe QR Code e permite copiar rede e senha</p></div></div><button type="button" role="switch" aria-checked={wifiEnabled} onClick={() => { const next = !wifiEnabled; setWifiEnabled(next); if (next) setDirectRedirect(false) }} className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-sky-600 focus:ring-offset-2 ${wifiEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}><span className={`pointer-events-none inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow-sm transition-transform ${wifiEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} /></button></div>
                 {wifiEnabled && <div className="mt-3 pt-3 border-t border-slate-100 space-y-2"><input type="text" value={wifiSsid} onChange={(event) => setWifiSsid(event.target.value)} placeholder="Nome da rede (SSID)" className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-sky-500" /><input type="password" autoComplete="new-password" value={wifiPassword} onChange={(event) => setWifiPassword(event.target.value)} placeholder="Senha da rede" disabled={wifiSecurity === 'nopass'} className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl disabled:bg-slate-100 focus:outline-hidden focus:ring-2 focus:ring-sky-500" /><div className="grid grid-cols-2 gap-2"><select value={wifiSecurity} onChange={(event) => setWifiSecurity(event.target.value as 'WPA' | 'WEP' | 'nopass')} className="rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs"><option value="WPA">WPA/WPA2/WPA3</option><option value="WEP">WEP</option><option value="nopass">Sem senha</option></select><label className="flex items-center gap-2 rounded-xl border border-slate-300 bg-white px-3 py-2 text-xs text-slate-600"><input type="checkbox" checked={wifiHidden} onChange={(event) => setWifiHidden(event.target.checked)} />Rede oculta</label></div><p className="text-[10px] leading-4 text-amber-700">Use preferencialmente uma rede separada para visitantes.</p></div>}
               </div>
+
+              <div className={`rounded-2xl border p-4 transition ${pixEnabled ? 'border-teal-200 bg-white shadow-2xs' : 'border-slate-200 bg-slate-50/70'}`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex items-start gap-3 min-w-0">
+                    <div className="w-9 h-9 rounded-xl flex items-center justify-center shrink-0 bg-teal-50 text-teal-700">
+                      <PixIcon className="w-4 h-4 text-teal-600" />
+                    </div>
+                    <div>
+                      <h4 className="text-xs font-bold text-slate-900">Pagamento com Pix</h4>
+                      <p className="text-[11px] leading-relaxed text-slate-500 mt-0.5">QR Code, chave e código Pix Copia e Cola</p>
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={pixEnabled}
+                    onClick={() => {
+                      const next = !pixEnabled
+                      setPixEnabled(next)
+                      if (next) setDirectRedirect(false)
+                    }}
+                    className={`relative inline-flex h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-hidden focus:ring-2 focus:ring-teal-600 focus:ring-offset-2 ${pixEnabled ? 'bg-emerald-500' : 'bg-slate-300'}`}
+                  >
+                    <span className={`pointer-events-none inline-block h-5 w-5 mt-0.5 rounded-full bg-white shadow-sm transition-transform ${pixEnabled ? 'translate-x-5' : 'translate-x-0.5'}`} />
+                  </button>
+                </div>
+                {pixEnabled && (
+                  <div className="mt-3 pt-3 border-t border-slate-100 space-y-2">
+                    <div>
+                      <label className="block text-[11px] font-bold text-slate-700 mb-1">
+                        Chave Pix ou Código Copia e Cola *
+                      </label>
+                      <input
+                        type="text"
+                        value={pixKey}
+                        onChange={(e) => setPixKey(e.target.value)}
+                        placeholder="CPF, CNPJ, e-mail, celular, chave aleatória ou 000201..."
+                        className="w-full px-3 py-2 text-xs font-mono bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                          Nome do Titular (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={pixName}
+                          onChange={(e) => setPixName(e.target.value)}
+                          placeholder="Nome do recebedor"
+                          className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                          Cidade (opcional)
+                        </label>
+                        <input
+                          type="text"
+                          value={pixCity}
+                          onChange={(e) => setPixCity(e.target.value)}
+                          placeholder="Cidade"
+                          className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-[10px] font-bold text-slate-600 mb-1">
+                        Descrição / Identificação (opcional)
+                      </label>
+                      <input
+                        type="text"
+                        value={pixDescription}
+                        onChange={(e) => setPixDescription(e.target.value)}
+                        placeholder="Ex.: Pagamento de comanda, gorjeta, etc."
+                        className="w-full px-3 py-2 text-xs bg-white border border-slate-300 rounded-xl focus:outline-hidden focus:ring-2 focus:ring-teal-500"
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 
@@ -1056,6 +1177,11 @@ export const CustomerTagEditPage: React.FC = () => {
               wifiPassword={wifiPassword}
               wifiSecurity={wifiSecurity}
               wifiHidden={wifiHidden}
+              pixEnabled={pixEnabled}
+              pixKey={pixKey}
+              pixName={pixName}
+              pixCity={pixCity}
+              pixDescription={pixDescription}
               customUrl={customUrl.startsWith('http') ? customUrl : customUrl ? `https://${customUrl}` : ''}
               customLabel={customLabel}
               customEnabled={customEnabled}
@@ -1092,11 +1218,11 @@ export const CustomerTagEditPage: React.FC = () => {
             <button
               type="button"
               onClick={() => setDirectRedirect(true)}
-              disabled={wifiEnabled}
+              disabled={wifiEnabled || pixEnabled}
               className={`p-4 rounded-2xl border-2 text-left transition cursor-pointer ${
                 directRedirect
                   ? 'border-blue-600 bg-blue-50/50 shadow-2xs'
-                  : wifiEnabled
+                  : (wifiEnabled || pixEnabled)
                     ? 'border-slate-200 bg-slate-100 opacity-55 cursor-not-allowed'
                     : 'border-slate-200 hover:border-slate-300'
               }`}
@@ -1105,7 +1231,7 @@ export const CustomerTagEditPage: React.FC = () => {
                 Redirecionamento Direto Instantâneo
               </div>
               <p className="text-[11px] text-slate-500 leading-relaxed">
-                {wifiEnabled ? 'Indisponível enquanto o botão de Wi-Fi estiver ativo.' : 'Abre diretamente o primeiro link ativado sem passar pela página de apresentação.'}
+                {(wifiEnabled || pixEnabled) ? 'Indisponível enquanto o botão de Wi-Fi ou Pix estiver ativo.' : 'Abre diretamente o primeiro link ativado sem passar pela página de apresentação.'}
               </p>
             </button>
           </div>

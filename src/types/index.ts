@@ -67,6 +67,7 @@ export type DestinationType =
   | 'ifood'
   | 'youtube'
   | 'wifi'
+  | 'pix'
   | 'custom_url'
 
 export interface DestinationConfig {
@@ -101,6 +102,11 @@ export interface DestinationConfig {
   wifi_password?: string
   wifi_security?: 'WPA' | 'WEP' | 'nopass'
   wifi_hidden?: boolean
+  pix_enabled?: boolean
+  pix_key?: string
+  pix_name?: string
+  pix_city?: string
+  pix_description?: string
   custom_url?: string
   custom_label?: string
   custom_enabled?: boolean
